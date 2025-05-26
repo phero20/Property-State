@@ -1,8 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// This is your Prisma schema file for MongoDB
 
 generator client {
   provider = "prisma-client-js"
@@ -13,6 +9,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Post model for property listings
 model Post {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
   title      String
@@ -33,11 +30,13 @@ model Post {
   savedPosts SavedPost[]
 }
 
+// Type of post: buy or rent
 enum Type {
   buy
   rent
 }
 
+// Property type
 enum Property {
   apartment
   house
@@ -45,6 +44,7 @@ enum Property {
   land
 }
 
+// Extra details for a post
 model PostDetail {
   id         String  @id @default(auto()) @map("_id") @db.ObjectId
   desc       String
@@ -59,6 +59,7 @@ model PostDetail {
   postId     String  @unique @db.ObjectId
 }
 
+// Saved posts by users
 model SavedPost {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   user      User     @relation(fields: [userId], references: [id])
@@ -70,6 +71,7 @@ model SavedPost {
   @@unique([userId, postId])
 }
 
+// User model for people using the app
 model User {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
   email      String      @unique
@@ -83,16 +85,18 @@ model User {
   chatIDs    String[]    @db.ObjectId
 }
 
+// Chat between users
 model Chat {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  users     User[]    @relation(fields: [userIDs], references: [id])
-  userIDs   String[]  @db.ObjectId
-  createdAt DateTime  @default(now())
-  seenBy    String[]  @db.ObjectId
-  messages  Message[]
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  users       User[]    @relation(fields: [userIDs], references: [id])
+  userIDs     String[]  @db.ObjectId
+  createdAt   DateTime  @default(now())
+  seenBy      String[]  @db.ObjectId
+  messages    Message[]
   lastMessage String?
 }
 
+// Message sent in a chat
 model Message {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   text      String

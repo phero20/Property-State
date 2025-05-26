@@ -2,28 +2,26 @@ import prisma from "../lib/prisma.js";
 import jwt from "jsonwebtoken";
 
 export const getPosts = async (req, res) => {
-  const query = req.query;
+  let query = req.query;
 
   try {
     const posts = await prisma.post.findMany({
       where: {
-        city: query.city || undefined,
-        type: query.type || undefined,
-        property: query.property || undefined,
-        bedroom: parseInt(query.bedroom) || undefined,
+        city: query.city ? query.city : undefined,
+        type: query.type ? query.type : undefined,
+        property: query.property ? query.property : undefined,
+        bedroom: query.bedroom ? parseInt(query.bedroom) : undefined,
         price: {
-          gte: parseInt(query.minPrice) || undefined,
-          lte: parseInt(query.maxPrice) || undefined,
+          gte: query.minPrice ? parseInt(query.minPrice) : undefined,
+          lte: query.maxPrice ? parseInt(query.maxPrice) : undefined,
         },
       },
     });
 
-    // setTimeout(() => {
     res.status(200).json(posts);
-    // }, 3000);
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Failed to get posts" });
+    console.log("error getting posts", err);
+    res.status(500).json({ message: "could not get posts" });
   }
 };
 
@@ -31,7 +29,7 @@ export const getPost = async (req, res) => {
   const id = req.params.id;
   try {
     const post = await prisma.post.findUnique({
-      where: { id },
+      where: { id: id },
       include: {
         postDetail: true,
         user: {
@@ -43,7 +41,7 @@ export const getPost = async (req, res) => {
       },
     });
 
-    const token = req.cookies?.token;
+    const token = req.cookies && req.cookies.token;
 
     if (token) {
       jwt.verify(token, process.env.JWT_SECRET_KEY, async (err, payload) => {
@@ -62,8 +60,8 @@ export const getPost = async (req, res) => {
     }
     res.status(200).json({ ...post, isSaved: false });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Failed to get post" });
+    console.log("couldn't get post", err);
+    res.status(500).json({ message: "could not get post" });
   }
 };
 
@@ -83,8 +81,8 @@ export const addPost = async (req, res) => {
     });
     res.status(200).json(newPost);
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Failed to create post" });
+    console.log("add post fail", err);
+    res.status(500).json({ message: "could not make post" });
   }
 };
 
@@ -92,8 +90,8 @@ export const updatePost = async (req, res) => {
   try {
     res.status(200).json();
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Failed to update posts" });
+    console.log("update post error", err);
+    res.status(500).json({ message: "could not update post" });
   }
 };
 
@@ -103,20 +101,20 @@ export const deletePost = async (req, res) => {
 
   try {
     const post = await prisma.post.findUnique({
-      where: { id },
+      where: { id: id },
     });
 
     if (post.userId !== tokenUserId) {
-      return res.status(403).json({ message: "Not Authorized!" });
+      return res.status(403).json({ message: "not allowed!" });
     }
 
     await prisma.post.delete({
-      where: { id },
+      where: { id: id },
     });
 
-    res.status(200).json({ message: "Post deleted" });
+    res.status(200).json({ msg: "post deleted lol" });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Failed to delete post" });
+    console.log("delete post fail", err);
+    res.status(500).json({ msg: "couldn't delete post, oops" });
   }
 };
