@@ -17,7 +17,6 @@ app.get("/backend", (req, res) => {
   res.send("Welcome to the backend!");
 });
 
-// Beginner-style random routes
 app.get("/ping", (req, res) => {
   res.send("up dre s");
 });
