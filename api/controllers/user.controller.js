@@ -78,35 +78,43 @@ export const deleteUser = async (req, res) => {
 
 export const savePost = async (req, res) => {
   const postId = req.body.postId;
-  const authUserId = req.userId;
+  const tokenUserId = req.userId;
 
   try {
-    const alreadySaved = await prisma.savedPost.findUnique({
+    // Check if post is already saved
+    const existingSavedPost = await prisma.savedPost.findUnique({
       where: {
         userId_postId: {
-          userId: authUserId,
-          postId,
+          userId: tokenUserId,
+          postId: postId,
         },
       },
     });
 
-    if (alreadySaved) {
+    if (existingSavedPost) {
+      // Remove from saved posts
       await prisma.savedPost.delete({
-        where: { id: alreadySaved.id },
-      });
-      res.status(200).json({ msg: "Post unsaved." });
-    } else {
-      await prisma.savedPost.create({
-        data: {
-          userId: authUserId,
-          postId,
+        where: {
+          userId_postId: {
+            userId: tokenUserId,
+            postId: postId,
+          },
         },
       });
-      res.status(200).json({ msg: "Post added to saved!" });
+      res.status(200).json({ message: "Post removed from saved list" });
+    } else {
+      // Add to saved posts
+      await prisma.savedPost.create({
+        data: {
+          userId: tokenUserId,
+          postId: postId,
+        },
+      });
+      res.status(200).json({ message: "Post saved successfully" });
     }
-  } catch (error) {
-    console.error("Save/unsave error:", error);
-    res.status(500).json({ msg: "Couldn't update saved posts." });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Failed to save post" });
   }
 };
 
@@ -142,5 +150,60 @@ export const getNotificationNumber = async (req, res) => {
   } catch (error) {
     console.error("Notification count error:", error);
     res.status(500).json({ msg: "Couldn't get notifications." });
+  }
+};
+
+export const getSavedPosts = async (req, res) => {
+  const tokenUserId = req.userId;
+
+  try {
+    const savedPosts = await prisma.savedPost.findMany({
+      where: { userId: tokenUserId },
+      include: {
+        post: {
+          include: {
+            user: {
+              select: {
+                username: true,
+                avatar: true,
+              },
+            },
+            postDetail: true,
+          },
+        },
+      },
+    });
+
+    const posts = savedPosts.map((savedPost) => savedPost.post);
+    res.status(200).json(posts);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Failed to get saved posts" });
+  }
+};
+
+export const getProfile = async (req, res) => {
+  const tokenUserId = req.userId;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: tokenUserId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        avatar: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Failed to get profile" });
   }
 };

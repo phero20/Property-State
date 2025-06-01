@@ -9,6 +9,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User model for people using the app
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  username  String   @unique
+  password  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  posts       Post[]
+  savedPosts  SavedPost[]
+  chatUsers   ChatUser[]  // Changed from chats to chatUsers
+  messages    Message[]
+}
+
 // Post model for property listings
 model Post {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
@@ -24,8 +41,11 @@ model Post {
   type       Type
   property   Property
   createdAt  DateTime    @default(now())
-  user       User        @relation(fields: [userId], references: [id])
+  updatedAt  DateTime    @updatedAt
   userId     String      @db.ObjectId
+  
+  // Relations
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   postDetail PostDetail?
   savedPosts SavedPost[]
 }
@@ -46,7 +66,7 @@ enum Property {
 
 // Extra details for a post
 model PostDetail {
-  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
   desc       String
   utilities  String?
   pet        String?
@@ -55,53 +75,60 @@ model PostDetail {
   school     Int?
   bus        Int?
   restaurant Int?
-  post       Post    @relation(fields: [postId], references: [id])
-  postId     String  @unique @db.ObjectId
+  postId     String @unique @db.ObjectId
+  
+  // Relations
+  post       Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
 // Saved posts by users
 model SavedPost {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id])
-  post      Post     @relation(fields: [postId], references: [id])
-  userId    String   @unique @db.ObjectId
-  postId    String   @unique @db.ObjectId
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  postId String @db.ObjectId
   createdAt DateTime @default(now())
-
+  
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
   @@unique([userId, postId])
 }
 
-// User model for people using the app
-model User {
-  id         String      @id @default(auto()) @map("_id") @db.ObjectId
-  email      String      @unique
-  username   String      @unique
-  password   String
-  avatar     String?
-  createdAt  DateTime    @default(now())
-  posts      Post[]
-  savedPosts SavedPost[]
-  chats      Chat[]      @relation(fields: [chatIDs], references: [id])
-  chatIDs    String[]    @db.ObjectId
-}
-
-// Chat between users
+// Chat model
 model Chat {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  users       User[]    @relation(fields: [userIDs], references: [id])
-  userIDs     String[]  @db.ObjectId
   createdAt   DateTime  @default(now())
   seenBy      String[]  @db.ObjectId
-  messages    Message[]
   lastMessage String?
+  
+  // Relations
+  chatUsers   ChatUser[] // Junction table for many-to-many
+  messages    Message[]
+}
+
+// Junction table for User-Chat many-to-many relationship
+model ChatUser {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  chatId String @db.ObjectId
+  
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, chatId])
 }
 
 // Message sent in a chat
 model Message {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   text      String
-  userId    String
-  chat      Chat     @relation(fields: [chatId], references: [id])
+  userId    String   @db.ObjectId
   chatId    String   @db.ObjectId
   createdAt DateTime @default(now())
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
 }
