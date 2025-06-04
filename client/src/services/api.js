@@ -26,22 +26,34 @@ api.interceptors.request.use(
         
         // Add authentication headers
         if (user.token) {
-          config.headers['Authorization'] = `Bearer ${user.token}`;
-          console.log('🔐 Added Bearer token');
+          // Ensure token is actually a JWT (should start with eyJ)
+          if (typeof user.token === 'string' && user.token.startsWith('eyJ')) {
+            config.headers['Authorization'] = `Bearer ${user.token}`;
+            console.log('🔐 Added valid JWT Bearer token');
+          } else {
+            // Use user ID as a fallback
+            config.headers['Authorization'] = `${user.id}`;
+            // Add additional headers for identification
+            config.headers['x-user-id'] = user.id;
+            config.headers['x-user-email'] = user.email;
+            config.headers['x-user-username'] = user.username;
+            console.log('🔐 Added user ID as auth token fallback');
+          }
         } else {
-          // Fallback authentication headers
+          // No token, use user ID as fallback authentication
+          config.headers['Authorization'] = `${user.id}`;
           config.headers['x-user-id'] = user.id;
           config.headers['x-user-email'] = user.email;
           config.headers['x-user-username'] = user.username;
-          config.headers['Authorization'] = `Bearer ${user.id}`;
-          console.log('🔐 Added fallback auth headers');
+          console.log('🔐 Added user ID as fallback authentication');
         }
         
         console.log('🔐 Auth headers added:', { 
           userId: user.id, 
           email: user.email, 
           username: user.username,
-          hasToken: !!user.token
+          hasToken: !!user.token,
+          tokenType: user.token ? (user.token.startsWith('eyJ') ? 'JWT' : 'other') : 'none'
         });
       } catch (error) {
         console.error('❌ Error parsing user data for auth:', error);
@@ -119,11 +131,16 @@ export const userAPI = {
   
   getNotifications: async () => {
     try {
-      return await api.get('/user/notifications');
+      const response = await api.get('/users/notifications'); // Notice 'users' plural
+      return response;
     } catch (error) {
-      console.log('🔄 API unavailable, returning mock notifications...');
-      // Return mock notifications count for development
-      return { data: Math.floor(Math.random() * 5) }; // Random 0-4 notifications
+      console.error('❌ Error fetching notifications:', error);
+      if (process.env.NODE_ENV !== 'production' && 
+         (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
+        console.log('🔄 Using mock notifications data');
+        return { data: 3 }; // Return mock notification count
+      }
+      throw error;
     }
   },
   
@@ -263,19 +280,76 @@ export const userAPI = {
 
 // Posts API - Remove localStorage fallbacks, trust the backend
 export const postAPI = {
-  getAllPosts: async () => {
-    return await api.get('/posts');
+  getAllPosts: async (params = {}) => {
+    try {
+      console.log('📋 Fetching all posts...');
+      const response = await api.get('/posts', { params });
+      return response;
+    } catch (error) {
+      console.error('❌ Error fetching posts:', error);
+      if (process.env.NODE_ENV !== 'production' && 
+         (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
+        console.log('🔄 Using mock posts data');
+        return { data: mockPosts };
+      }
+      throw error;
+    }
   },
-  
-  getPost: (id) => api.get(`/posts/${id}`),
-  
+
+  getPost: async (id) => {
+    try {
+      console.log(`🔍 Fetching post by ID: ${id}...`);
+      return await api.get(`/posts/${id}`);
+    } catch (error) {
+      console.error(`❌ Error fetching post with ID ${id}:`, error);
+      if (process.env.NODE_ENV !== 'production' && 
+         (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
+        console.log('🔄 Using mock post data');
+        const mockPost = mockPosts.find(post => post.id === id) || mockPosts[0];
+        return { data: mockPost };
+      }
+      throw error;
+    }
+  },
+
+  // Update the createPost method to properly format data before sending
   createPost: async (postData) => {
-    console.log('📝 Creating post via API:', postData.title);
-    
-    // Send the complete post data to backend
-    const response = await api.post('/posts', postData);
-    console.log('✅ Post created via API');
-    return response;
+    try {
+      console.log('📝 Creating new post via API:', postData.title);
+      
+      // Format the data to ensure types are correct
+      const formattedPostData = {
+        ...postData,
+        // Convert numeric fields to proper types
+        price: parseFloat(postData.price),
+        bedroom: parseInt(postData.bedroom || 0),
+        bathroom: parseFloat(postData.bathroom || 0),
+        
+        // Ensure coordinates are numbers, not strings
+        latitude: postData.latitude ? parseFloat(postData.latitude) : null,
+        longitude: postData.longitude ? parseFloat(postData.longitude) : null,
+        
+        // Format post details
+        postDetail: postData.postDetail ? {
+          desc: postData.postDetail.desc || '',
+          utilities: postData.postDetail.utilities || '',
+          pet: postData.postDetail.pet || '',
+          income: postData.postDetail.income || '',
+          size: postData.postDetail.size ? parseInt(postData.postDetail.size) : null,
+          school: postData.postDetail.school ? parseInt(postData.postDetail.school) : null,
+          bus: postData.postDetail.bus ? parseInt(postData.postDetail.bus) : null,
+          restaurant: postData.postDetail.restaurant ? parseInt(postData.postDetail.restaurant) : null
+        } : {}
+      };
+      
+      console.log('📤 Sending formatted post data:', formattedPostData);
+      const response = await api.post('/posts', formattedPostData);
+      console.log('✅ Post created via API');
+      return response;
+    } catch (error) {
+      console.error('❌ Error creating post:', error);
+      throw error;
+    }
   },
   
   updatePost: (id, postData) => api.put(`/posts/${id}`, postData),

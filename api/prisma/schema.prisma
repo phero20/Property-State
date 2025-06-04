@@ -12,62 +12,42 @@ datasource db {
 // User model for people using the app
 model User {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  email     String   @unique
   username  String   @unique
+  email     String   @unique
   password  String
   avatar    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relations
-  posts       Post[]
-  savedPosts  SavedPost[]
-  chatUsers   ChatUser[]  // Changed from chats to chatUsers
-  messages    Message[]
+  posts     Post[]   // Relation to posts
+  // other fields...
 }
 
 // Post model for property listings
 model Post {
-  id         String      @id @default(auto()) @map("_id") @db.ObjectId
-  title      String
-  price      Int
-  images     String[]
-  address    String
-  city       String
-  bedroom    Int
-  bathroom   Int
-  latitude   String
-  longitude  String
-  type       Type
-  property   Property
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  userId     String      @db.ObjectId
-  
-  // Relations
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  price     Float
+  images    String[]
+  address   String?
+  city      String
+  bedroom   Int?
+  bathroom  Float?
+  latitude  String?  // Change from Float? to String?
+  longitude String?  // Change from Float? to String?
+  type      String     @default("rent") // rent or buy
+  property  String     @default("apartment") // apartment, house, condo, land
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  userId    String     @db.ObjectId
+  user      User       @relation(fields: [userId], references: [id])
   postDetail PostDetail?
-  savedPosts SavedPost[]
-}
-
-// Type of post: buy or rent
-enum Type {
-  buy
-  rent
-}
-
-// Property type
-enum Property {
-  apartment
-  house
-  condo
-  land
+  // other fields...
 }
 
 // Extra details for a post
 model PostDetail {
-  id         String @id @default(auto()) @map("_id") @db.ObjectId
-  desc       String
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  desc       String?
   utilities  String?
   pet        String?
   income     String?
@@ -75,60 +55,6 @@ model PostDetail {
   school     Int?
   bus        Int?
   restaurant Int?
-  postId     String @unique @db.ObjectId
-  
-  // Relations
-  post       Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-}
-
-// Saved posts by users
-model SavedPost {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  postId String @db.ObjectId
-  createdAt DateTime @default(now())
-  
-  // Relations
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, postId])
-}
-
-// Chat model
-model Chat {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  createdAt   DateTime  @default(now())
-  seenBy      String[]  @db.ObjectId
-  lastMessage String?
-  
-  // Relations
-  chatUsers   ChatUser[] // Junction table for many-to-many
-  messages    Message[]
-}
-
-// Junction table for User-Chat many-to-many relationship
-model ChatUser {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  chatId String @db.ObjectId
-  
-  // Relations
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, chatId])
-}
-
-// Message sent in a chat
-model Message {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  text      String
-  userId    String   @db.ObjectId
-  chatId    String   @db.ObjectId
-  createdAt DateTime @default(now())
-  
-  // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  postId     String  @unique @db.ObjectId
+  post       Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
 }

@@ -207,3 +207,18 @@ export const getProfile = async (req, res) => {
     res.status(500).json({ message: "Failed to get profile" });
   }
 };
+
+// Add or update the getNotifications function
+export const getNotifications = async (req, res) => {
+  try {
+    const userId = req.userId;
+    console.log("🔔 Getting notifications for user:", userId);
+
+    // For now, just return a static number
+    // In the future, you can query your database for actual notifications
+    res.status(200).json(3);
+  } catch (error) {
+    console.error("❌ Error getting notifications:", error);
+    res.status(500).json({ message: "Failed to get notifications" });
+  }
+};

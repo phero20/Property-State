@@ -1,30 +1,19 @@
 import express from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
+import { 
+  getUser, 
+  updateUser, 
+  getNotifications 
+} from "../controllers/user.controller.js";
 
 const router = express.Router();
 
-// Mock controller functions for now
-const savePost = async (req, res) => {
-  res.json({ 
-    message: "Post saved successfully!", 
-    postId: req.body.postId,
-    userId: req.userId 
-  });
-};
+// IMPORTANT: Put specific routes BEFORE parameterized routes
+// Fix for notifications route
+router.get("/notifications", verifyToken, getNotifications);
 
-const getSavedPosts = async (req, res) => {
-  res.json({ message: "Get saved posts - not implemented yet", savedPosts: [] });
-};
-
-const getProfile = async (req, res) => {
-  res.json({ 
-    message: "Get profile - not implemented yet", 
-    userId: req.userId 
-  });
-};
-
-router.post("/save", verifyToken, savePost);
-router.get("/saved", verifyToken, getSavedPosts);
-router.get("/profile", verifyToken, getProfile);
+// Other routes
+router.get("/:id", getUser);
+router.put("/:id", verifyToken, updateUser);
 
 export default router;

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { usePosts } from '../hooks/usePosts';
 import PropertyCard from '../components/PropertyCard';
+import { useApiStatus } from '../context/ApiStatusContext';
+import { mockPosts } from '../services/mockData';
 
 const Posts = () => {
   const { posts, loading, error, loadPosts } = usePosts();
+  const { isUsingMockData } = useApiStatus();
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [filters, setFilters] = useState({
     city: '',
@@ -15,13 +18,18 @@ const Posts = () => {
     search: ''
   });
 
+  // Use mock data when API is offline or posts are empty
+  const displayPosts = isUsingMockData && (!posts || !posts.allPosts || posts.allPosts.length === 0) 
+    ? mockPosts 
+    : (posts && posts.allPosts ? posts.allPosts : []);
+
   // Apply filters whenever posts or filters change
   useEffect(() => {
     console.log('🔍 Applying filters to posts...');
-    console.log('📊 Total posts available:', posts.allPosts.length);
+    console.log('📊 Total posts available:', displayPosts.length);
     console.log('🏷️ Current filters:', filters);
 
-    let filtered = [...posts.allPosts];
+    let filtered = [...displayPosts];
 
     // Apply filters
     if (filters.city) {
@@ -64,7 +72,7 @@ const Posts = () => {
 
     console.log('✅ Filtered posts count:', filtered.length);
     setFilteredPosts(filtered);
-  }, [posts.allPosts, filters]);
+  }, [displayPosts, filters]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -289,6 +297,13 @@ const Posts = () => {
               </pre>
             </details>
           </div>
+        </div>
+      )}
+
+      {/* API Status Message */}
+      {isUsingMockData && (
+        <div className="mb-4 p-3 bg-blue-50 text-blue-700 text-sm rounded-md">
+          <p><span className="font-semibold">⚠️ Using mock data:</span> API server is offline</p>
         </div>
       )}
 

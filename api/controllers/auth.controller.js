@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
 
@@ -55,57 +55,46 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
   try {
-    console.log('🔐 Login attempt:', username);
-
-    // Check if user exists
+    // Find user by email
     const user = await prisma.user.findUnique({
-      where: { username },
+      where: { email },
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid Credentials!" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Check password
+    // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
-
     if (!isPasswordValid) {
-      return res.status(400).json({ message: "Invalid Credentials!" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     // Generate JWT token
-    const age = 1000 * 60 * 60 * 24 * 7; // 1 week
     const token = jwt.sign(
-      {
-        id: user.id,
-        isAdmin: false,
-      },
+      { id: user.id, email: user.email },
       process.env.JWT_SECRET_KEY,
-      { expiresIn: age }
+      { expiresIn: "7d" }
     );
 
-    const { password: userPassword, ...userInfo } = user;
+    console.log('✅ Login successful for:', user.email);
+    console.log('🔑 Generated JWT token for user ID:', user.id);
 
-    console.log('✅ Login successful:', user.username);
-
-    res
-      .cookie("token", token, {
-        httpOnly: true,
-        maxAge: age,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax"
-      })
-      .status(200)
-      .json({
-        message: "Login successful!",
-        user: userInfo
-      });
+    // Return user data and token
+    res.status(200).json({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      avatar: user.avatar,
+      token: token,
+      createdAt: user.createdAt,
+    });
   } catch (err) {
     console.error('❌ Login error:', err);
-    res.status(500).json({ message: "Failed to login!" });
+    res.status(500).json({ message: "Server error during login" });
   }
 };
 
