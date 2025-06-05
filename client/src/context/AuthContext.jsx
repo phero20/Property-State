@@ -115,12 +115,23 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('🔐 Login attempt...');
       
+      // Determine which field to use (email or username)
+      const isEmailLogin = !!credentials.email;
+      const loginField = isEmailLogin ? 'email' : 'username';
+      const loginValue = credentials[loginField];
+      
+      console.log(`🔑 Attempting login with ${loginField}: ${loginValue}`);
+      
       const response = await fetch('http://localhost:4000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({
+          [loginField]: loginValue,
+          password: credentials.password
+        }),
+        credentials: 'include' // Important for cookies
       });
 
       if (response.ok) {
@@ -128,8 +139,8 @@ export const AuthProvider = ({ children }) => {
         console.log('✅ API Login successful:', result);
 
         const userData = {
-          ...result.user,
-          token: result.token || `user_${result.user.id}`,
+          ...result,
+          token: result.token || `user_${result.id}`,
           lastLogin: new Date().toISOString()
         };
         
@@ -139,28 +150,35 @@ export const AuthProvider = ({ children }) => {
         
         return { success: true, user: userData };
       } else {
-        throw new Error('Login failed');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
       }
     } catch (error) {
-      console.error('❌ Login failed, checking localStorage:', error);
+      console.error('❌ Login failed:', error);
       
-      // Fallback - check localStorage for existing user
-      const savedUser = localStorage.getItem('user');
-      if (savedUser) {
-        const userData = JSON.parse(savedUser);
-        
-        // Ensure token exists
-        if (!userData.token) {
-          userData.token = `user_${userData.id}`;
+      // For development - try fallback
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const devCredentials = credentials.email || credentials.username;
+          // Create a mock user for development
+          const mockUser = {
+            id: `dev_${Date.now()}`,
+            username: devCredentials.split('@')[0] || 'devuser',
+            email: credentials.email || `${credentials.username}@example.com`,
+            token: `dev_token_${Date.now()}`,
+            lastLogin: new Date().toISOString()
+          };
+          
+          console.log('🔧 Development mode: Creating mock user session:', mockUser.username);
+          
+          setUser(mockUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('user', JSON.stringify(mockUser));
+          
+          return { success: true, user: mockUser };
+        } catch (e) {
+          console.error('Failed to create development user');
         }
-        
-        userData.lastLogin = new Date().toISOString();
-        
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        return { success: true, user: userData };
       }
       
       throw error;

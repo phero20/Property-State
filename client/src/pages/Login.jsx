@@ -28,10 +28,12 @@ const Login = () => {
       // Determine if input is email or username
       const isEmail = formData.emailOrUsername.includes('@');
       
+      // Format credentials to match the API expectation
       const credentials = {
-        [isEmail ? 'email' : 'username']: formData.emailOrUsername,
-        password: formData.password,
-        lastLogin: new Date().toISOString()
+        // The API expects either 'email' or 'username' as the field name
+        email: isEmail ? formData.emailOrUsername : undefined,
+        username: !isEmail ? formData.emailOrUsername : undefined,
+        password: formData.password
       };
 
       console.log('🔐 Login attempt with:', { 
@@ -138,6 +140,28 @@ const Login = () => {
               </button>
             </div>
           </form>
+
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const isEmail = formData.emailOrUsername.includes('@');
+                  console.log('📊 Debug Login Request:');
+                  console.log('Input value:', formData.emailOrUsername);
+                  console.log('Is Email:', isEmail);
+                  console.log('Will send as:', isEmail ? 'email' : 'username');
+                  console.log('Full payload:', {
+                    [isEmail ? 'email' : 'username']: formData.emailOrUsername,
+                    password: formData.password
+                  });
+                }}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 font-normal py-1 px-2 rounded"
+              >
+                Debug Login
+              </button>
+            </div>
+          )}
 
           <div className="mt-6">
             <p className="text-center text-sm text-gray-600">

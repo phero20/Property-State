@@ -55,22 +55,45 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
-
   try {
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // Check if database is connected
+    try {
+      const dbTest = await prisma.user.count();
+      console.log('✅ Database connection verified:', dbTest, 'users found');
+    } catch (dbError) {
+      console.error('❌ Database connection error:', dbError);
+      return res.status(500).json({ message: "Database connection error" });
+    }
+    
+    const { email, username, password } = req.body;
+    
+    // Check if we have either email or username
+    if (!email && !username) {
+      return res.status(400).json({ message: "Email or username is required" });
+    }
+
+    console.log('🔐 Login attempt with:', email ? `email: ${email}` : `username: ${username}`);
+    
+    // Find user by email or username
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          email ? { email: email } : {},
+          username ? { username: username } : {}
+        ]
+      }
     });
 
     if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      console.log('❌ User not found');
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      console.log('❌ Invalid password');
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Generate JWT token
@@ -83,6 +106,12 @@ export const login = async (req, res) => {
     console.log('✅ Login successful for:', user.email);
     console.log('🔑 Generated JWT token for user ID:', user.id);
 
+    // Set token as cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
     // Return user data and token
     res.status(200).json({
       id: user.id,
@@ -91,6 +120,7 @@ export const login = async (req, res) => {
       avatar: user.avatar,
       token: token,
       createdAt: user.createdAt,
+      fullName: user.fullName || user.username
     });
   } catch (err) {
     console.error('❌ Login error:', err);
