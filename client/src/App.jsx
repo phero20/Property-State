@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ApiStatusProvider } from './context/ApiStatusContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -14,9 +14,27 @@ import Profile from './pages/profile'; // Changed to lowercase
 import Chat from './pages/Chat';
 import Test from './pages/test'; // Changed to lowercase
 import AddPost from './pages/AddPost';
+import socketService from './services/socket';
 import './index.css';
 
 function App() {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // Connect socket when user is authenticated
+    if (user?.id) {
+      console.log('🔌 Initializing socket connection for user:', user.id);
+      const socket = socketService.connect(user.id);
+      console.log('✅ Socket initialized:', socket?.id);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      console.log('🔌 Cleaning up socket connection');
+      socketService.disconnect();
+    };
+  }, [user]);
+
   return (
     <AuthProvider>
       <BrowserRouter>

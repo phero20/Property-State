@@ -360,295 +360,116 @@ export const postAPI = {
 
 // Chat/Messages API
 export const chatAPI = {
-  getConversations: async () => {
-    try {
-      return await api.get('/chat/conversations');
-    } catch (error) {
-      console.log('🔄 API unavailable, returning mock conversations...');
-      
-      // Return mock conversations with proper data structure
-      const userData = localStorage.getItem('user');
-      const user = userData ? JSON.parse(userData) : null;
-      
-      if (!user) {
-        return { data: [] };
-      }
-
-      const mockConversations = [
-        {
-          id: `chat_${Date.now()}_1`,
-          participants: [user.id, 'user_demo_1'],
-          participantInfo: {
-            id: 'user_demo_1',
-            username: 'john_doe',
-            fullName: 'John Doe',
-            avatar: null,
-            email: 'john@example.com'
-          },
-          lastMessage: {
-            id: `msg_${Date.now()}_1`,
-            content: 'Hello! I\'m interested in your property listing. Is it still available?',
-            senderId: 'user_demo_1',
-            createdAt: new Date(Date.now() - 3600000).toISOString()
-          },
-          unreadCount: 2,
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          updatedAt: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-          id: `chat_${Date.now()}_2`,
-          participants: [user.id, 'user_demo_2'],
-          participantInfo: {
-            id: 'user_demo_2',
-            username: 'jane_smith',
-            fullName: 'Jane Smith',
-            avatar: null,
-            email: 'jane@example.com'
-          },
-          lastMessage: {
-            id: `msg_${Date.now()}_2`,
-            content: 'Thank you for the quick response! When can we schedule a viewing?',
-            senderId: 'user_demo_2',
-            createdAt: new Date(Date.now() - 7200000).toISOString()
-          },
-          unreadCount: 0,
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-          updatedAt: new Date(Date.now() - 7200000).toISOString()
-        },
-        {
-          id: `chat_${Date.now()}_3`,
-          participants: [user.id, 'user_demo_3'],
-          participantInfo: {
-            id: 'user_demo_3',
-            username: 'mike_wilson',
-            fullName: 'Mike Wilson',
-            avatar: null,
-            email: 'mike@example.com'
-          },
-          lastMessage: {
-            id: `msg_${Date.now()}_3`,
-            content: 'Great property! What are the monthly utility costs?',
-            senderId: user.id,
-            createdAt: new Date(Date.now() - 10800000).toISOString()
-          },
-          unreadCount: 1,
-          createdAt: new Date(Date.now() - 259200000).toISOString(),
-          updatedAt: new Date(Date.now() - 10800000).toISOString()
-        }
-      ];
-
-      console.log('✅ Returning mock conversations:', mockConversations.length);
-      return { data: mockConversations };
-    }
-  },
-
-  // Add the missing getChats function (alias for getConversations)
+  // Get all conversations for current user
   getChats: async () => {
     try {
-      console.log('💬 Fetching chats from API...');
-      return await chatAPI.getConversations();
+      const response = await api.get('/chat/conversations');
+      return response;
     } catch (error) {
-      console.error('❌ Error fetching chats:', error);
-      
-      // This fallback should not be reached since getConversations handles fallback
-      return { data: [] };
+      console.log('❌ Failed to fetch chats:', error.message);
+      // Use fallback data from localStorage for development
+      const mockChats = JSON.parse(localStorage.getItem('userChats') || '[]');
+      return { data: mockChats };
     }
   },
   
-  getMessages: async (conversationId) => {
+  // Get messages for a specific chat
+  getMessages: async (chatId) => {
     try {
-      return await api.get(`/chat/conversations/${conversationId}/messages`);
+      const response = await api.get(`/chat/${chatId}/messages`);
+      return response;
     } catch (error) {
-      console.log('🔄 API unavailable, returning mock messages for conversation:', conversationId);
-      
-      // Return mock messages for development
-      const userData = localStorage.getItem('user');
-      const user = userData ? JSON.parse(userData) : null;
-      
-      const mockMessages = [
-        {
-          id: `msg_${Date.now()}_1`,
-          conversationId,
-          senderId: 'user_demo_1',
-          content: 'Hello! I saw your property listing and I\'m very interested.',
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          senderInfo: {
-            username: 'john_doe',
-            fullName: 'John Doe',
-            avatar: null
-          }
-        },
-        {
-          id: `msg_${Date.now()}_2`,
-          conversationId,
-          senderId: user?.id || 'current_user',
-          content: 'Hi John! Thank you for your interest. The property is still available. Would you like to schedule a viewing?',
-          createdAt: new Date(Date.now() - 5400000).toISOString(),
-          senderInfo: {
-            username: user?.username || 'you',
-            fullName: user?.fullName || user?.username || 'You',
-            avatar: user?.avatar || null
-          }
-        },
-        {
-          id: `msg_${Date.now()}_3`,
-          conversationId,
-          senderId: 'user_demo_1',
-          content: 'That would be great! I\'m available this weekend. What times work best for you?',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          senderInfo: {
-            username: 'john_doe',
-            fullName: 'John Doe',
-            avatar: null
-          }
-        },
-        {
-          id: `msg_${Date.now()}_4`,
-          conversationId,
-          senderId: user?.id || 'current_user',
-          content: 'Perfect! How about Saturday at 2 PM? I can meet you at the property.',
-          createdAt: new Date(Date.now() - 1800000).toISOString(),
-          senderInfo: {
-            username: user?.username || 'you',
-            fullName: user?.fullName || user?.username || 'You',
-            avatar: user?.avatar || null
-          }
-        },
-        {
-          id: `msg_${Date.now()}_5`,
-          conversationId,
-          senderId: 'user_demo_1',
-          content: 'Saturday at 2 PM works perfectly! Should I bring any documents with me?',
-          createdAt: new Date(Date.now() - 900000).toISOString(),
-          senderInfo: {
-            username: 'john_doe',
-            fullName: 'John Doe',
-            avatar: null
-          }
-        }
-      ];
-      
-      console.log('✅ Returning mock messages:', mockMessages.length);
-      return { data: mockMessages };
+      console.log('❌ Failed to fetch messages:', error.message);
+      // Use fallback data from localStorage for development
+      const chatMessages = JSON.parse(localStorage.getItem(`chat_${chatId}_messages`) || '[]');
+      return { data: chatMessages };
     }
   },
   
-  sendMessage: async (conversationId, message) => {
+  // Create a new chat with another user
+  createChat: async (userId, propertyId) => {
     try {
-      return await api.post(`/chat/conversations/${conversationId}/messages`, message);
+      const response = await api.post('/chat', { userId, propertyId });
+      return response;
     } catch (error) {
-      console.log('🔄 API unavailable, simulating message send...');
-      
-      const userData = localStorage.getItem('user');
-      const user = userData ? JSON.parse(userData) : null;
-      
-      const newMessage = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        conversationId,
-        senderId: user?.id || 'current_user',
-        content: message.content,
+      console.log('❌ Failed to create chat:', error.message);
+      // Create a mock chat for development
+      const mockChat = {
+        id: `chat_${Date.now()}`,
         createdAt: new Date().toISOString(),
-        senderInfo: {
-          username: user?.username || 'you',
-          fullName: user?.fullName || user?.username || 'You',
-          avatar: user?.avatar || null
+        updatedAt: new Date().toISOString(),
+        lastMessage: '',
+        participantInfo: {
+          id: userId,
+          username: `user_${userId.substring(0, 5)}`,
+          avatar: null
         }
       };
       
-      console.log('✅ Simulated message sent:', newMessage);
+      // Store in localStorage for persistence during development
+      const existingChats = JSON.parse(localStorage.getItem('userChats') || '[]');
+      existingChats.push(mockChat);
+      localStorage.setItem('userChats', JSON.stringify(existingChats));
+      
+      return { data: mockChat };
+    }
+  },
+  
+  // Send a message in a chat
+  sendMessage: async (chatId, messageContent) => {
+    try {
+      const response = await api.post(`/chat/${chatId}/messages`, { content: messageContent });
+      return response;
+    } catch (error) {
+      console.log('❌ Failed to send message:', error.message);
+      // Create a mock message for development
+      const userData = localStorage.getItem('user');
+      const user = userData ? JSON.parse(userData) : { id: 'current_user' };
+      
+      const newMessage = {
+        id: `msg_${Date.now()}`,
+        chatId: chatId,
+        content: messageContent,
+        senderId: user.id,
+        createdAt: new Date().toISOString()
+      };
+      
+      // Update localStorage
+      const chatMessages = JSON.parse(localStorage.getItem(`chat_${chatId}_messages`) || '[]');
+      chatMessages.push(newMessage);
+      localStorage.setItem(`chat_${chatId}_messages`, JSON.stringify(chatMessages));
+      
+      // Update last message in chat list
+      const existingChats = JSON.parse(localStorage.getItem('userChats') || '[]');
+      const chatIndex = existingChats.findIndex(chat => chat.id === chatId);
+      if (chatIndex !== -1) {
+        existingChats[chatIndex].lastMessage = {
+          content: messageContent,
+          createdAt: new Date().toISOString()
+        };
+        existingChats[chatIndex].updatedAt = new Date().toISOString();
+        localStorage.setItem('userChats', JSON.stringify(existingChats));
+      }
+      
       return { data: newMessage };
     }
   },
   
-  createConversation: async (participantId, postId = null) => {
-    try {
-      return await api.post('/chat/conversations', { participantId, postId });
-    } catch (error) {
-      console.log('🔄 API unavailable, simulating conversation creation...');
-      const userData = localStorage.getItem('user');
-      const user = userData ? JSON.parse(userData) : null;
-      
-      const conversation = {
-        id: `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        participants: [user?.id, participantId],
-        participantInfo: {
-          id: participantId,
-          username: 'new_contact',
-          fullName: 'New Contact',
-          avatar: null,
-          email: 'contact@example.com'
-        },
-        postId,
-        createdAt: new Date().toISOString(),
-        lastMessage: null,
-        unreadCount: 0,
-        updatedAt: new Date().toISOString()
-      };
-      
-      console.log('✅ Simulated conversation created:', conversation);
-      return { data: conversation };
-    }
-  },
-
-  // Add the missing createChat function (alias for createConversation)
-  createChat: async (ownerId, postId = null) => {
-    try {
-      console.log('💬 Creating chat with owner:', ownerId, 'for post:', postId);
-      return await chatAPI.createConversation(ownerId, postId);
-    } catch (error) {
-      console.error('❌ Error creating chat:', error);
-      throw error;
-    }
-  },
-
-  // Additional chat methods
-  getChatById: async (chatId) => {
-    try {
-      return await api.get(`/chat/conversations/${chatId}`);
-    } catch (error) {
-      console.log('🔄 API unavailable, returning mock chat...');
-      return { 
-        data: { 
-          id: chatId, 
-          messages: [],
-          participants: [],
-          participantInfo: {
-            username: 'unknown_user',
-            fullName: 'Unknown User'
-          }
-        } 
-      };
-    }
-  },
-
+  // Mark a chat as read
   markChatAsRead: async (chatId) => {
     try {
-      return await api.put(`/chat/conversations/${chatId}/read`);
+      const response = await api.put(`/chat/${chatId}/read`);
+      return response;
     } catch (error) {
-      console.log('🔄 API unavailable, simulating mark as read...');
+      console.log('❌ Failed to mark chat as read:', error.message);
+      // Update localStorage for development
+      const existingChats = JSON.parse(localStorage.getItem('userChats') || '[]');
+      const chatIndex = existingChats.findIndex(chat => chat.id === chatId);
+      if (chatIndex !== -1 && existingChats[chatIndex].unreadCount) {
+        existingChats[chatIndex].unreadCount = 0;
+        localStorage.setItem('userChats', JSON.stringify(existingChats));
+      }
       return { data: { success: true } };
-    }
-  },
-
-  // Add function to get chat messages
-  getChatMessages: async (chatId) => {
-    try {
-      console.log('📨 Getting messages for chat:', chatId);
-      return await chatAPI.getMessages(chatId);
-    } catch (error) {
-      console.error('❌ Error getting chat messages:', error);
-      return { data: [] };
-    }
-  },
-
-  // Add function to send chat message
-  sendChatMessage: async (chatId, messageContent) => {
-    try {
-      console.log('📤 Sending message to chat:', chatId);
-      return await chatAPI.sendMessage(chatId, { content: messageContent });
-    } catch (error) {
-      console.error('❌ Error sending chat message:', error);
-      throw error;
     }
   }
 };

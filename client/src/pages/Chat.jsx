@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { chatAPI } from '../services/api';
-import socketService from '../services/socketService';
+import socketService from '../services/socket';
 
 const Chat = () => {
   const [chats, setChats] = useState([]);
@@ -9,13 +9,47 @@ const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [debugMode, setDebugMode] = useState(process.env.NODE_ENV === 'development');
   const { user, isAuthenticated } = useAuth();
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     if (user?.id) {
-      // Connect to socket when component mounts (simulated)
-      socketService.connect(user.id);
+      const socket = socketService.connect(user.id);
+      
+      if (socket) {
+        console.log('🔌 Socket connected in Chat component');
+        console.log('🆔 Socket ID:', socketService.getSocketId());
+        console.log('👤 User ID:', user.id);
+        setSocketConnected(true);
+        
+        // Listen for incoming messages
+        socket.on('getMessage', (data) => {
+          console.log('📩 Message received in Chat component:', data);
+          
+          // Handle incoming message (add to state, etc.)
+          if (selectedChat && 
+             (data.senderId === selectedChat.otherUser.id || 
+              data.chatId === selectedChat.id)) {
+            
+            console.log('📥 Adding received message to current chat');
+            setMessages(prev => [...prev, data]);
+          }
+        });
+      }
+      
+      return () => {
+        // Clean up socket listeners
+        if (socket) {
+          socket.off('getMessage');
+        }
+      };
+    }
+  }, [user, selectedChat]);
+
+  useEffect(() => {
+    if (user?.id) {
       fetchChats();
     }
   }, [user]);
@@ -47,12 +81,14 @@ const Chat = () => {
     }
   };
 
+  // Fix the fetchMessages function
   const fetchMessages = async (chatId) => {
     try {
       console.log('📨 Fetching messages for chat:', chatId);
       setLoading(true);
       
-      const response = await chatAPI.getChatMessages(chatId);
+      // Changed from getChatMessages to getMessages to match the API service
+      const response = await chatAPI.getMessages(chatId);
       const messagesData = response.data || [];
       
       console.log('✅ Messages loaded:', messagesData.length);
@@ -81,6 +117,7 @@ const Chat = () => {
     }
   };
 
+  // Fix the handleSendMessage function
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
@@ -92,7 +129,8 @@ const Chat = () => {
     try {
       console.log('📤 Sending message:', messageContent);
       
-      const response = await chatAPI.sendChatMessage(selectedChat.id, messageContent);
+      // Changed from sendChatMessage to sendMessage to match the API service
+      const response = await chatAPI.sendMessage(selectedChat.id, messageContent);
       const sentMessage = response.data;
       
       console.log('✅ Message sent successfully:', sentMessage.id);
@@ -193,14 +231,18 @@ const Chat = () => {
                               className="w-10 h-10 rounded-full object-cover"
                             />
                           ) : (
-                            (chat.participantInfo?.fullName || chat.participantInfo?.username || 'U').charAt(0).toUpperCase()
+                            // Use otherUser instead of participantInfo for consistency
+                            ((chat.otherUser?.fullName || chat.otherUser?.username || 
+                              chat.participantInfo?.fullName || chat.participantInfo?.username || 'U')
+                              .charAt(0).toUpperCase())
                           )}
                         </div>
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <p className="text-sm font-medium text-gray-900 truncate">
-                              {chat.participantInfo?.fullName || chat.participantInfo?.username || 'Unknown User'}
+                              {chat.otherUser?.fullName || chat.otherUser?.username || 
+                               chat.participantInfo?.fullName || chat.participantInfo?.username || 'Unknown User'}
                             </p>
                             {chat.unreadCount > 0 && (
                               <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
@@ -335,6 +377,29 @@ const Chat = () => {
           </div>
         </div>
       </div>
+
+      {debugMode && (
+        <div className="p-3 bg-gray-100 border-t text-xs">
+          <div className="mb-2 font-semibold">Debug Info:</div>
+          <div className="space-y-1">
+            <p>Socket connected: {socketConnected ? 'Yes' : 'No'}</p>
+            <p>Socket ID: {socketService.getSocketId()}</p>
+            <p>User ID: {user?.id || 'Not logged in'}</p>
+            <p>Selected chat: {selectedChat?.id || 'None'}</p>
+            <p>API Endpoint: /chat/{selectedChat?.id}/messages</p>
+            <button 
+              onClick={() => {
+                console.log('🔄 Debug refresh triggered');
+                fetchChats();
+                if (selectedChat) fetchMessages(selectedChat.id);
+              }}
+              className="mt-2 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
+            >
+              Refresh Data
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

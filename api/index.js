@@ -102,6 +102,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Test endpoint for debugging
 app.get('/api/test', (req, res) => {

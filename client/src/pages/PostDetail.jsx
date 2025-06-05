@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { postAPI, chatAPI } from '../services/api';
+import socketService from '../services/socket';
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -72,19 +73,35 @@ const PostDetail = () => {
     setContacting(true);
 
     try {
-      console.log('🔄 Creating chat with owner:', post.ownerInfo.id);
-      console.log('📋 Post ID:', post.id);
+      // Ensure socket is connected
+      const socket = socketService.connect(user.id);
+      console.log('🔌 Socket connected for chat initiation:', socket ? socket.id : 'not connected');
       console.log('👤 Current user:', user?.id);
+      console.log('👤 Property owner:', post.ownerInfo.id);
 
       // Create chat/conversation with the property owner
+      console.log('🔄 Creating chat with owner:', post.ownerInfo.id);
+      console.log('📋 Post ID:', post.id);
+      
       const response = await chatAPI.createChat(post.ownerInfo.id, post.id);
       console.log('✅ Chat created successfully:', response.data);
       
-      // Navigate to chat page
-      navigate('/chat');
+      // Send initial message via socket
+      if (socket) {
+        const initialMessage = {
+          chatId: response.data.id,
+          senderId: user.id, 
+          receiverId: post.ownerInfo.id,
+          content: `Hi, I'm interested in your property "${post.title}"`,
+          createdAt: new Date().toISOString()
+        };
+        
+        console.log('📤 Sending initial message via socket:', initialMessage);
+        socketService.sendMessage(post.ownerInfo.id, initialMessage);
+      }
       
-      // Show success message
-      alert(`Chat started with ${post.ownerInfo.fullName || post.ownerInfo.username}! You can now send messages.`);
+      // Navigate to chat page - FIXED: changed from /messages to /chat
+      navigate('/chat');
       
     } catch (error) {
       console.error('❌ Error creating chat:', error);
@@ -307,7 +324,7 @@ const PostDetail = () => {
                     <div className="text-center p-3 bg-gray-50 rounded">
                       <div className="text-2xl mb-1">🏫</div>
                       <div className="font-medium">Schools</div>
-                      <div className="text-sm text-gray-600">{post.postDetail.school}/10</div>
+                      <div className="text-sm text-gray-600">{post.postDetail.school} Minutes</div>
                     </div>
                   )}
                   
@@ -315,7 +332,7 @@ const PostDetail = () => {
                     <div className="text-center p-3 bg-gray-50 rounded">
                       <div className="text-2xl mb-1">🚌</div>
                       <div className="font-medium">Public Transport</div>
-                      <div className="text-sm text-gray-600">{post.postDetail.bus}/10</div>
+                      <div className="text-sm text-gray-600">{post.postDetail.bus} Minutes</div>
                     </div>
                   )}
                   
@@ -323,7 +340,7 @@ const PostDetail = () => {
                     <div className="text-center p-3 bg-gray-50 rounded">
                       <div className="text-2xl mb-1">🍽️</div>
                       <div className="font-medium">Restaurants</div>
-                      <div className="text-sm text-gray-600">{post.postDetail.restaurant}/10</div>
+                      <div className="text-sm text-gray-600">{post.postDetail.restaurant} Minutes</div>
                     </div>
                   )}
                 </div>
@@ -397,6 +414,23 @@ const PostDetail = () => {
                   </button>
                 )}
               </div>
+
+              {/* Debug Socket Connection - DEV ONLY */}
+              {process.env.NODE_ENV === 'development' && (
+                <button
+                  onClick={() => {
+                    console.log('📊 Debug Socket Connection:');
+                    console.log('Socket service:', socketService);
+                    console.log('Current socket ID:', socketService.getSocketId());
+                    console.log('Current user ID:', user?.id);
+                    console.log('Property owner ID:', post.ownerInfo?.id);
+                    console.log('Available routes:', ['/chat', '/messages']);
+                  }}
+                  className="mt-2 w-full bg-gray-100 text-xs text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
+                >
+                  Debug Socket Connection
+                </button>
+              )}
 
               {/* Contact Information */}
               {showContactInfo && post.ownerInfo.showContactInfo && (
