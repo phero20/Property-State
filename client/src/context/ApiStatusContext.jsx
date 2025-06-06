@@ -1,49 +1,59 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
+// Define the base API URL correctly
+const API_URL = 'http://localhost:4000';
+
+// Create the context
 const ApiStatusContext = createContext({
-  isServerOnline: false,
-  isUsingMockData: true,
-  checkServerStatus: () => {}
+  isApiOnline: false,
+  setApiOnline: () => {}
 });
 
 export const ApiStatusProvider = ({ children }) => {
-  const [isServerOnline, setIsServerOnline] = useState(false);
-  const [isUsingMockData, setIsUsingMockData] = useState(true);
-  
-  const checkServerStatus = async () => {
-    try {
-      // Try a common endpoint that should exist
-      const response = await fetch('http://localhost:4000/api', {
-        method: 'HEAD', // Only request headers, not the full response
-        signal: AbortSignal.timeout(2000)
-      });
-      
-      // Consider any response as online (even 404, which means server is up but route doesn't exist)
-      // This is because the API server is responding, even if the specific endpoint doesn't exist
-      const online = response.status !== 0;
-      console.log('🔌 API server status check:', online ? 'Online' : 'Offline', `(${response.status})`);
-      
-      setIsServerOnline(online);
-      setIsUsingMockData(!online);
-      return online;
-    } catch (error) {
-      console.log('⚠️ API server check failed:', error.message);
-      setIsServerOnline(false);
-      setIsUsingMockData(true);
-      return false;
-    }
-  };
-  
+  const [isApiOnline, setApiOnline] = useState(false);
+
   useEffect(() => {
-    // Check on mount and periodically
-    checkServerStatus();
-    const interval = setInterval(checkServerStatus, 30000);
+    // Function to check if API is online
+    const checkApiStatus = async () => {
+      try {
+        // Use a more reliable endpoint that likely exists in your API
+        // '/health' or '/api/health' would be even better if you have it
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        const response = await fetch(`${API_URL}`, {
+          method: 'HEAD',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Any response means the server is up, even 404
+        // This is enough to know the server is running
+        setApiOnline(true);
+        console.log(`🔌 API server status check: Online (${response.status})`);
+      } catch (error) {
+        // Only log if it's not an abort error
+        if (error.name !== 'AbortError') {
+          console.log('📴 API server appears to be offline');
+          setApiOnline(false);
+        }
+      }
+    };
+
+    // Check immediately on load
+    checkApiStatus();
     
-    return () => clearInterval(interval);
+    // Then check every 30 seconds
+    const interval = setInterval(checkApiStatus, 30000);
+    
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
-  
+
   return (
-    <ApiStatusContext.Provider value={{ isServerOnline, isUsingMockData, checkServerStatus }}>
+    <ApiStatusContext.Provider value={{ isApiOnline, setApiOnline }}>
       {children}
     </ApiStatusContext.Provider>
   );

@@ -13,6 +13,7 @@ const Chat = () => {
   const [debugMode, setDebugMode] = useState(process.env.NODE_ENV === 'development');
   const { user, isAuthenticated } = useAuth();
   const messagesEndRef = useRef(null);
+  const [showUserInfoModal, setShowUserInfoModal] = useState(false);
 
   useEffect(() => {
     // Initialize the component
@@ -307,6 +308,72 @@ const Chat = () => {
     </div>
   );
 
+  // Add this helper function to group messages by date
+  const groupMessagesByDate = (messages) => {
+    const groups = {};
+    
+    messages.forEach(message => {
+      const date = new Date(message.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      
+      groups[date].push(message);
+    });
+    
+    return Object.entries(groups).map(([date, messages]) => ({
+      date,
+      messages
+    }));
+  };
+
+  // Update the getRelativeTimeLabel function to handle invalid dates
+  const getRelativeTimeLabel = (dateString) => {
+    // Safety check for invalid date strings
+    if (!dateString) return 'Recently';
+    
+    let date;
+    try {
+      date = new Date(dateString);
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Recently';
+      }
+    } catch (error) {
+      console.log('❌ Invalid date format:', dateString);
+      return 'Recently';
+    }
+    
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    
+    const today = new Date().setHours(0, 0, 0, 0);
+    const messageDay = new Date(date).setHours(0, 0, 0, 0);
+    
+    if (messageDay === today) return formatTime(date);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (messageDay === yesterday.getTime()) return 'Yesterday';
+    
+    // If it's within the last 7 days, show the day name
+    if (now - date < 7 * 24 * 60 * 60 * 1000) {
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    }
+    
+    // Otherwise, show the date
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 text-center">
@@ -353,55 +420,78 @@ const Chat = () => {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {chats.map((chat) => (
-                    <div
-                      key={chat.id}
-                      onClick={() => handleChatSelect(chat)}
-                      className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                        selectedChat?.id === chat.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
-                          {chat.participantInfo?.avatar ? (
-                            <img 
-                              src={chat.participantInfo.avatar} 
-                              alt={chat.participantInfo.username}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            // Use otherUser instead of participantInfo for consistency
-                            ((chat.otherUser?.fullName || chat.otherUser?.username || 
-                              chat.participantInfo?.fullName || chat.participantInfo?.username || 'U')
-                              .charAt(0).toUpperCase())
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {chat.otherUser?.fullName || chat.otherUser?.username || 
-                               chat.participantInfo?.fullName || chat.participantInfo?.username || 'Unknown User'}
-                            </p>
-                            {chat.unreadCount > 0 && (
-                              <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                                {chat.unreadCount}
-                              </span>
+                  {chats.map((chat) => {
+                    const lastActivity = chat.lastMessage?.createdAt || chat.updatedAt || chat.createdAt;
+                    const chatDate = lastActivity ? new Date(lastActivity) : null;
+                    const dateLabel = chatDate ? 
+                      getRelativeTimeLabel(chatDate) : 
+                      'No activity';
+                    
+                    return (
+                      <div
+                        key={chat.id}
+                        onClick={() => handleChatSelect(chat)}
+                        className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                          selectedChat?.id === chat.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                            {chat.otherUser?.avatar ? (
+                              <img 
+                                src={chat.otherUser.avatar} 
+                                alt={chat.otherUser.username}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              // Use otherUser instead of participantInfo for consistency
+                              ((chat.otherUser?.fullName || chat.otherUser?.username || 'U')
+                                .charAt(0).toUpperCase())
                             )}
                           </div>
                           
-                          <div className="flex items-center justify-between mt-1">
-                            <p className="text-sm text-gray-500 truncate">
-                              {chat.lastMessage ? chat.lastMessage.content : 'No messages yet'}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {chat.lastMessage ? formatDate(chat.lastMessage.createdAt) : formatDate(chat.createdAt)}
-                            </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {chat.otherUser?.fullName || chat.otherUser?.username || 'Unknown User'}
+                              </p>
+                              {chat.unreadCount > 0 && (
+                                <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                                  {chat.unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="text-sm text-gray-500 truncate">
+                                {chat.lastMessage ? chat.lastMessage.content : 'No messages yet'}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {dateLabel}
+                              </p>
+                            </div>
+                            
+                            {/* Add this new section for clear date display */}
+                            <div className="mt-1 flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <p className="text-xs text-gray-400">
+                                {chatDate ? 
+                                  chatDate.toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  }) : 
+                                  'Date unknown'
+                                }
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -411,29 +501,57 @@ const Chat = () => {
           <div className="flex-1 flex flex-col">
             {selectedChat ? (
               <>
-                {/* Chat Header */}
+                {/* Chat Header - Enhanced with user details */}
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
-                      {selectedChat.participantInfo?.avatar ? (
+                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                      {selectedChat.otherUser?.avatar ? (
                         <img 
-                          src={selectedChat.participantInfo.avatar} 
-                          alt={selectedChat.participantInfo.username}
-                          className="w-8 h-8 rounded-full object-cover"
+                          src={selectedChat.otherUser.avatar} 
+                          alt={selectedChat.otherUser.username}
+                          className="w-10 h-10 rounded-full object-cover"
                         />
                       ) : (
-                        (selectedChat.participantInfo?.fullName || selectedChat.participantInfo?.username || 'U').charAt(0).toUpperCase()
+                        ((selectedChat.otherUser?.fullName || selectedChat.otherUser?.username || 'U')
+                          .charAt(0).toUpperCase())
                       )}
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {selectedChat.participantInfo?.fullName || selectedChat.participantInfo?.username || 'Unknown User'}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        @{selectedChat.participantInfo?.username || 'unknown'}
-                      </p>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-semibold text-gray-900">
+                          {selectedChat.otherUser?.fullName || selectedChat.otherUser?.username || 'Unknown User'}
+                        </h3>
+                        
+                        {/* Status indicator */}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="h-2 w-2 mr-1 rounded-full bg-green-400"></span>
+                          Online
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center text-sm text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <span className="truncate">
+                          {selectedChat.otherUser?.email || 'No email available'}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  
+                  {/* If there's property info, show it */}
+                  {selectedChat.property && (
+                    <div className="mt-2 pt-2 border-t border-gray-200 text-sm">
+                      <div className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        <span className="font-medium text-gray-700 mr-1">Property:</span>
+                        <span className="text-blue-600 truncate">{selectedChat.property.title}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Messages */}
@@ -450,32 +568,42 @@ const Chat = () => {
                       <p className="text-sm mt-1">Start the conversation!</p>
                     </div>
                   ) : (
-                    messages.map((message) => {
-                      const isOwnMessage = message.senderId === user?.id;
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                              isOwnMessage
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-200 text-gray-900'
-                            }`}
-                          >
-                            <p className="text-sm">{message.content}</p>
-                            <p
-                              className={`text-xs mt-1 ${
-                                isOwnMessage ? 'text-blue-100' : 'text-gray-500'
-                              }`}
-                            >
-                              {formatTime(message.createdAt)}
-                            </p>
+                    groupMessagesByDate(messages).map((group) => (
+                      <div key={group.date} className="space-y-4">
+                        <div className="flex items-center justify-center my-6">
+                          <div className="bg-gray-200 rounded-full px-3 py-1 text-xs text-gray-600">
+                            {group.date}
                           </div>
                         </div>
-                      );
-                    })
+                        
+                        {group.messages.map((message) => {
+                          const isOwnMessage = message.senderId === user?.id;
+                          return (
+                            <div
+                              key={message.id}
+                              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div
+                                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                  isOwnMessage
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-200 text-gray-900'
+                                }`}
+                              >
+                                <p className="text-sm">{message.content}</p>
+                                <p
+                                  className={`text-xs mt-1 ${
+                                    isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+                                  }`}
+                                >
+                                  {formatTime(message.createdAt)}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))
                   )}
                   <div ref={messagesEndRef} />
                 </div>
@@ -559,10 +687,75 @@ const Chat = () => {
             </button>
             <button 
               className="bg-gray-600 px-2 py-1 rounded text-xs"
-              onClick={() => mockChatAPI.initializeMockData()}
+              onClick={() => setDebugMode(!debugMode)}
             >
-              Reset Mocks
+              Toggle Debug
             </button>
+          </div>
+        </div>
+      )}
+
+      {selectedChat && showUserInfoModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
+              <button 
+                onClick={() => setShowUserInfoModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="mb-4 flex items-center">
+              <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-semibold mr-4">
+                {selectedChat.otherUser?.avatar ? (
+                  <img 
+                    src={selectedChat.otherUser.avatar} 
+                    alt={selectedChat.otherUser.username}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  ((selectedChat.otherUser?.fullName || selectedChat.otherUser?.username || 'U')
+                    .charAt(0).toUpperCase())
+                )}
+              </div>
+              
+              <div>
+                <h4 className="text-xl font-semibold">
+                  {selectedChat.otherUser?.fullName || selectedChat.otherUser?.username || 'Unknown User'}
+                </h4>
+                <p className="text-gray-500">@{selectedChat.otherUser?.username || 'unknown'}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span>{selectedChat.otherUser?.email || 'No email available'}</span>
+              </div>
+              
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Member since {new Date(selectedChat.otherUser?.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowUserInfoModal(false)}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded-md font-medium text-gray-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

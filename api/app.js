@@ -56,6 +56,16 @@ app.get("/", (req, res) => {
   });
 });
 
+// Add a health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+// OR even simpler
+app.head('/api', (req, res) => {
+  res.status(200).end();
+});
+
 const PORT = process.env.PORT || 4000;
 
 const server = app.listen(PORT, () => {
