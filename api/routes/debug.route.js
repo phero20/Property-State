@@ -1,20 +1,9 @@
-import express from "express";
-import { verifyToken } from "../middleware/verifyToken.js";
+import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
-router.get("/should-be-logged-in", verifyToken, (req, res) => {
-  console.log('✅ User authenticated:', req.userId);
-  res.status(200).json({ message: "You are Authenticated", userId: req.userId });
-});
-
-router.get("/should-be-admin", verifyToken, (req, res) => {
-  console.log('❌ Admin check - not authorized');
-  res.status(403).json({ message: "Not authorized!" });
-});
 
 // Check database connectivity and get counts
 router.get('/db-stats', async (req, res) => {
@@ -25,8 +14,17 @@ router.get('/db-stats', async (req, res) => {
     // Get collection counts
     const userCount = await prisma.user.count();
     const postCount = await prisma.post.count();
-    const conversationCount = await prisma.conversation.count();
-    const messageCount = await prisma.message.count();
+    
+    // Check if conversation and message models exist in the schema
+    let conversationCount = 0;
+    let messageCount = 0;
+    
+    try {
+      conversationCount = await prisma.conversation.count();
+      messageCount = await prisma.message.count();
+    } catch (modelError) {
+      console.log('⚠️ Conversation or Message models might not be available:', modelError.message);
+    }
     
     res.status(200).json({
       status: 'connected',

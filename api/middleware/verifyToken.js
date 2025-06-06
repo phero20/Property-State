@@ -1,70 +1,47 @@
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const verifyToken = (req, res, next) => {
   try {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      console.log('❌ No authorization header provided');
-      return res.status(401).json({ message: 'No token provided' });
-    }
+    // Log the authorization header for debugging
+    console.log('🔑 Authorization Header:', req.headers.authorization);
     
-    // Debug log the header
-    console.log('🔑 Auth header:', authHeader);
-    
-    // Extract the token (remove "Bearer " prefix)
-    let token = '';
-    if (authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-    } else {
-      // If it doesn't start with Bearer, try to use it directly
-      token = authHeader;
-    }
-    
+    const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
-      console.log('❌ Empty token after extraction');
-      return res.status(401).json({ message: 'No token provided' });
+      console.error('❌ No token provided');
+      return res.status(401).json({ message: 'Access denied. No token provided.' });
     }
-    
-    // Handle non-standard token formats (like user ID directly passed as token)
-    let userId = null;
     
     try {
-      // First try to verify as a proper JWT
       const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-      userId = decoded.id;
-      console.log('✅ Valid JWT token - User ID:', userId);
-    } catch (jwtError) {
-      console.warn('⚠️ JWT verification failed:', jwtError.message);
+      console.log('✅ Token verified, decoded payload:', decoded);
       
-      // Special handling for specific client-side error
-      if (token.length === 24 && /^[0-9a-f]+$/.test(token)) {
-        // This appears to be a MongoDB ObjectId
-        console.log('⚠️ Client sent ObjectId as token, using as userId:', token);
-        userId = token;
-      } else {
-        // Try to extract user info from other auth headers
-        const userIdHeader = req.headers['x-user-id'];
-        if (userIdHeader) {
-          console.log('⚠️ Using fallback user ID from headers:', userIdHeader);
-          userId = userIdHeader;
-        } else {
-          console.error('❌ No valid authentication found');
-          return res.status(401).json({ 
-            message: 'Invalid token',
-            details: jwtError.message
-          });
+      // Set the user information in the request object
+      req.user = decoded;
+      
+      // Ensure the user ID is set correctly
+      if (!req.user.id) {
+        // Try to find id from possible field names
+        if (req.user._id) req.user.id = req.user._id;
+        else if (req.user.userId) req.user.id = req.user.userId;
+        
+        if (!req.user.id) {
+          console.error('❌ User ID not found in token payload');
+          return res.status(400).json({ message: 'Invalid token format: user ID missing' });
         }
       }
+      
+      console.log('👤 User ID extracted from token:', req.user.id);
+      next();
+    } catch (error) {
+      console.error('❌ Token verification failed:', error.message);
+      return res.status(400).json({ message: 'Invalid token.', error: error.message });
     }
-    
-    // Add the user ID to the request object for use in the controller
-    req.userId = userId;
-    console.log('👤 Request authorized for user:', userId);
-    next();
   } catch (error) {
-    console.error('❌ Token verification error:', error);
-    return res.status(401).json({ message: 'Authentication error', error: error.message });
+    console.error('❌ Unexpected error in verifyToken middleware:', error);
+    return res.status(500).json({ message: 'Internal server error during authentication' });
   }
 };
 

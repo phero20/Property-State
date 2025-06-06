@@ -16,6 +16,7 @@ model User {
   email     String   @unique
   password  String
   avatar    String?
+  fullName  String?  // Add this field if it doesn't exist
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   posts     Post[]   // Relation to posts
@@ -66,28 +67,29 @@ model PostDetail {
 // Make sure these models are in your schema.prisma file
 
 model Conversation {
-  id         String   @id @default(cuid())
-  user1Id    String
-  user2Id    String
-  propertyId String?  // Optional reference to a property
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user1Unread Int     @default(0)
-  user2Unread Int     @default(0)
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  user1Id      String    @db.ObjectId
+  user2Id      String    @db.ObjectId
+  propertyId   String?   @db.ObjectId
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user1Unread  Int       @default(0)
+  user2Unread  Int       @default(0)
+  lastMessage  String?
   
-  user1      User     @relation("UserConversations1", fields: [user1Id], references: [id])
-  user2      User     @relation("UserConversations2", fields: [user2Id], references: [id])
-  messages   Message[]
-  property   Post?    @relation(fields: [propertyId], references: [id])
+  user1        User      @relation("UserConversations1", fields: [user1Id], references: [id])
+  user2        User      @relation("UserConversations2", fields: [user2Id], references: [id])
+  property     Post?     @relation(fields: [propertyId], references: [id])
+  messages     Message[]
 }
 
 model Message {
-  id             String       @id @default(cuid())
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
   content        String
-  senderId       String
-  conversationId String
+  senderId       String       @db.ObjectId
+  conversationId String       @db.ObjectId
   createdAt      DateTime     @default(now())
   
   sender         User         @relation(fields: [senderId], references: [id])
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
 }

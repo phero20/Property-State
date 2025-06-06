@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { postAPI, chatAPI } from '../services/api';
 import socketService from '../services/socket';
+import { toast } from 'react-toastify';
 
 const PostDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,59 +55,58 @@ const PostDetail = () => {
     }
   };
 
+  // Enhance the handleContactOwner function with better error handling
   const handleContactOwner = async () => {
     if (!isAuthenticated) {
-      alert('Please login to contact the property owner');
-      navigate('/login');
+      navigate('/login', { state: { from: location } });
       return;
     }
-
-    if (!post?.ownerInfo?.id) {
-      alert('Owner information not available');
-      return;
-    }
-
-    if (post.ownerInfo.id === user?.id) {
-      alert('You cannot contact yourself');
-      return;
-    }
-
-    setContacting(true);
 
     try {
-      // Ensure socket is connected
-      const socket = socketService.connect(user.id);
-      console.log('🔌 Socket connected for chat initiation:', socket ? socket.id : 'not connected');
-      console.log('👤 Current user:', user?.id);
-      console.log('👤 Property owner:', post.ownerInfo.id);
-
-      // Create chat/conversation with the property owner
-      console.log('🔄 Creating chat with owner:', post.ownerInfo.id);
-      console.log('📋 Post ID:', post.id);
+      console.log('🔄 Contacting owner. Post data:', post);
       
-      const response = await chatAPI.createChat(post.ownerInfo.id, post.id);
-      console.log('✅ Chat created successfully:', response.data);
+      // Get the owner ID from the correct location
+      const ownerId = post.postedById || (post.ownerInfo && post.ownerInfo.id) || post.userId;
       
-      // Send initial message via socket
-      if (socket) {
-        const initialMessage = {
-          chatId: response.data.id,
-          senderId: user.id, 
-          receiverId: post.ownerInfo.id,
-          content: `Hi, I'm interested in your property "${post.title}"`,
-          createdAt: new Date().toISOString()
-        };
-        
-        console.log('📤 Sending initial message via socket:', initialMessage);
-        socketService.sendMessage(post.ownerInfo.id, initialMessage);
+      console.log('🔄 Owner ID:', ownerId);
+      console.log('🔄 Current user:', user);
+      
+      // Check if IDs are valid
+      if (!ownerId) {
+        console.error('❌ Post has no owner ID');
+        throw new Error('Cannot contact owner: post has no owner information');
       }
       
-      // Navigate to chat page - FIXED: changed from /messages to /chat
-      navigate('/chat');
+      if (ownerId === user.id) {
+        toast.info("This is your own post!");
+        return;
+      }
       
+      setContacting(true); // Use contacting instead of loading to avoid UI confusion
+      toast.info("Creating conversation...");
+      
+      const response = await chatAPI.createChat(ownerId, post.id);
+      console.log('✅ Conversation created/retrieved:', response.data);
+      
+      toast.success("Conversation created! Redirecting to chat...");
+      
+      // Navigate to chat with this conversation selected
+      navigate('/chat', { state: { selectedChatId: response.data.id } });
     } catch (error) {
       console.error('❌ Error creating chat:', error);
-      alert('Failed to start chat. Please try again later.');
+      
+      // More specific error messages based on error type
+      if (error.response?.status === 404) {
+        toast.error('User not found. They may have deleted their account.');
+      } else if (error.response?.status === 500) {
+        if (error.response.data?.error?.includes('fullName')) {
+          toast.error('Sorry, there was a database schema issue. Please try again later.');
+        } else {
+          toast.error('Server error. Please try again later.');
+        }
+      } else {
+        toast.error('Failed to contact the owner. Please try again later.');
+      }
     } finally {
       setContacting(false);
     }

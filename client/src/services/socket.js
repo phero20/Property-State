@@ -94,26 +94,51 @@ class SocketService {
     return 'not-connected';
   }
   
+  // Update the sendMessage method to include all necessary fields
   sendMessage(receiverId, messageData) {
-    if (!receiverId || !messageData) {
-      console.log('⚠️ Cannot send message: Missing receiverId or messageData');
+    if (!messageData || !receiverId) {
+      console.error('❌ Cannot send message: Missing data');
       return false;
     }
     
     if (this.socket && this.connected) {
       console.log('📨 Sending message via socket to:', receiverId);
-      this.socket.emit('message:send', { receiverId, messageData });
+      
+      // Ensure all required fields are present
+      const message = {
+        ...messageData,
+        id: messageData.id || `temp_${Date.now()}`,
+        chatId: messageData.chatId,
+        senderId: messageData.senderId,
+        content: messageData.content,
+        createdAt: messageData.createdAt || new Date().toISOString(),
+      };
+      
+      this.socket.emit('sendMessage', { 
+        receiverId,
+        data: message
+      });
+      
       return true;
     } else {
-      console.log('❌ Cannot send message: Socket not connected');
+      console.error('❌ Cannot send message: Socket not connected');
       return false;
     }
   }
   
+  // Update the onMessage method to verify the recipient
   onMessage(callback) {
     if (this.socket) {
-      console.log('👂 Registering message listener');
-      this.socket.on('message:receive', callback);
+      console.log('👂 Registering message listener for user:', this.userId);
+      this.socket.on('message:receive', (data) => {
+        // Verify this message is intended for the current user
+        if (data.receiverId === this.userId || data.chatParticipants?.includes(this.userId)) {
+          console.log('📩 Received message intended for this user:', data);
+          callback(data);
+        } else {
+          console.warn('⚠️ Received message not intended for this user, ignoring');
+        }
+      });
     }
   }
   

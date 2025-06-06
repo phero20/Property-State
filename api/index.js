@@ -4,12 +4,13 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { PrismaClient } from '@prisma/client';
 
 // Import your routes
 import authRoutes from './routes/auth.route.js';
 import userRoutes from './routes/user.route.js';
 import postRoutes from './routes/post.route.js';
-import chatRoutes from './routes/chat.route.js';
+import chatRoutes from './routes/chat.routes.js';
 
 // Configure dotenv with proper path
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +19,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Create Express app instance
 const app = express();
+const prisma = new PrismaClient();
 
 console.log('📋 Environment variables loaded:');
 console.log('- MONGO_URI:', process.env.DATABASE_URL ? '✓ Set' : '✗ Missing');
@@ -54,6 +56,28 @@ const checkDatabaseConnection = async () => {
   }
 };
 
+// Add this before starting your server
+// This will print all registered routes
+const listRoutes = () => {
+  console.log('📋 API Routes:');
+  
+  const printRoutes = (path, layer) => {
+    if (layer.route) {
+      layer.route.stack.forEach(routeStack => {
+        const method = Object.keys(routeStack.route.methods)[0].toUpperCase();
+        console.log(`${method} ${path}${routeStack.route.path}`);
+      });
+    } else if (layer.name === 'router' && layer.handle.stack) {
+      layer.handle.stack.forEach(stackItem => {
+        printRoutes(path + layer.regexp.source.replace("^\\", "").replace("\\/?(?=\\/|$)", ""), stackItem);
+      });
+    }
+  };
+  
+  app._router.stack.forEach(printRoutes.bind(null, ''));
+  console.log('');
+};
+
 // Middleware
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -65,12 +89,13 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Debug middleware for logging requests
 app.use((req, res, next) => {
   const start = Date.now();
-  console.log(`📥 ${req.method} ${req.url}`);
+  console.log(`🔹 ${req.method} ${req.originalUrl} [${new Date().toISOString()}]`);
+  console.log(`📦 Body:`, req.body);
   
-  // Add a listener for when the response is finished
+  // Add a listener for when the response is completed
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`📤 ${req.method} ${req.url} ${res.statusCode} - ${duration}ms`);
+    console.log(`🔸 ${req.method} ${req.originalUrl} [${res.statusCode}] ${duration}ms`);
   });
   
   next();
@@ -102,7 +127,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/chats', chatRoutes);
-app.use('/api/chat', chatRoutes);
+app.use('/api/chat', chatRoutes); // Note '/api/chat' prefix
 
 // Test endpoint for debugging
 app.get('/api/test', (req, res) => {
@@ -138,16 +163,20 @@ app.use((err, req, res, next) => {
 
 // Connect to database and start server
 const startServer = async () => {
-  const dbConnected = await checkDatabaseConnection();
+  const dbConnected = await testDbConnection();
   
-  // Even if DB connection fails, start server for development purposes
+  if (!dbConnected) {
+    console.error('❌ Cannot start server: Database connection failed');
+    process.exit(1);
+  }
+  
   const PORT = process.env.PORT || 4000;
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    if (!dbConnected) {
-      console.warn('⚠️ Server running without database connection. Some features may not work.');
-    }
   });
 };
 
 startServer();
+
+// After registering all routes, call this function
+listRoutes();

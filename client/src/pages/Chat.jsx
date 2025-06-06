@@ -15,6 +15,26 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
+    // Initialize the component
+    if (isAuthenticated) {
+      fetchChats();
+    } else {
+      console.log('⚠️ User not authenticated, cannot load chats');
+      setLoading(false);
+    }
+    
+    return () => {
+      // Clean up socket listeners when component unmounts
+      if (socketConnected) {
+        const socket = socketService.getSocket();
+        if (socket) {
+          socket.off('getMessage');
+        }
+      }
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (user?.id) {
       const socket = socketService.connect(user.id);
       
@@ -58,36 +78,40 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Update the fetchChats function to filter chats for the current user
   const fetchChats = async () => {
     if (!user?.id) {
-      console.log('❌ No user ID available for fetching chats');
+      console.log('⚠️ No user ID available for fetching chats');
       setLoading(false);
       return;
     }
 
     try {
       console.log('💬 Fetching chats for user:', user.id);
+      setLoading(true);
+      
       const response = await chatAPI.getChats();
       const chatsData = response.data || [];
       
-      console.log('✅ Chats loaded successfully:', chatsData.length);
-      console.log('📋 Chat data:', chatsData);
+      // Sort chats by updatedAt (newest first)
+      chatsData.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      
+      console.log('✅ User chats loaded:', chatsData.length);
       setChats(chatsData);
     } catch (error) {
-      console.error('Error fetching chats:', error);
+      console.error('❌ Error fetching chats:', error);
       setChats([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fix the fetchMessages function
+  // Update the fetchMessages function to handle unauthorized access
   const fetchMessages = async (chatId) => {
     try {
       console.log('📨 Fetching messages for chat:', chatId);
       setLoading(true);
       
-      // Changed from getChatMessages to getMessages to match the API service
       const response = await chatAPI.getMessages(chatId);
       const messagesData = response.data || [];
       
@@ -95,54 +119,145 @@ const Chat = () => {
       setMessages(messagesData);
     } catch (error) {
       console.error('Error fetching messages:', error);
+      
+      // Check if this is an access denied error
+      if (error.response && error.response.status === 403) {
+        alert("You don't have permission to access these messages.");
+        // Reset selected chat
+        setSelectedChat(null);
+      }
+      
       setMessages([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChatSelect = async (chat) => {
-    console.log('🎯 Selected chat:', chat.id);
+  // Add debug-friendly handleChatSelect function
+  const handleChatSelect = (chat) => {
+    console.log('🔍 Selected chat:', chat.id);
     setSelectedChat(chat);
-    await fetchMessages(chat.id);
+    fetchMessages(chat.id);
     
-    // Mark chat as read
-    try {
-      await chatAPI.markChatAsRead(chat.id);
-      setChats(prev => prev.map(c => 
-        c.id === chat.id ? { ...c, unreadCount: 0 } : c
-      ));
-    } catch (error) {
-      console.error('Error marking chat as read:', error);
+    // Mark as read if there are unread messages
+    if (chat.unreadCount > 0) {
+      try {
+        chatAPI.markChatAsRead(chat.id);
+        
+        // Update local state to show as read
+        setChats(prevChats => 
+          prevChats.map(c => 
+            c.id === chat.id ? { ...c, unreadCount: 0 } : c
+          )
+        );
+      } catch (error) {
+        console.error('❌ Error marking chat as read:', error);
+      }
     }
   };
 
-  // Fix the handleSendMessage function
+  // Add this function to your Chat component
+  const createNewChat = async (userId, propertyId = null) => {
+    try {
+      console.log('🔄 Creating new chat with user:', userId);
+      setLoading(true);
+      
+      const response = await chatAPI.createChat(userId, propertyId);
+      const newChat = response.data;
+      
+      console.log('✅ Chat created:', newChat);
+      
+      // Add the new chat to the list and select it
+      setChats(prevChats => {
+        // Check if chat already exists
+        const exists = prevChats.some(chat => chat.id === newChat.id);
+        if (exists) {
+          return prevChats;
+        }
+        return [newChat, ...prevChats];
+      });
+      
+      // Select the new chat
+      setSelectedChat(newChat);
+      setMessages([]);
+      
+      return newChat;
+    } catch (error) {
+      console.error('❌ Error creating chat:', error);
+      alert('Failed to create conversation. Please try again.');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fix the handleSendMessage function to handle errors better
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
-    if (!newMessage.trim() || !selectedChat) return;
+    if (!newMessage.trim() || !selectedChat) {
+      console.log('❌ Cannot send: empty message or no selected chat');
+      return;
+    }
 
     const messageContent = newMessage.trim();
-    setNewMessage('');
+    const chatId = selectedChat.id;
+    
+    console.log(`📝 Sending message to chat ${chatId}: ${messageContent.substring(0, 20)}...`);
+    setNewMessage(''); // Clear input field immediately for better UX
 
     try {
-      console.log('📤 Sending message:', messageContent);
+      // Add the message to UI immediately with a temporary ID (optimistic UI update)
+      const tempMessage = {
+        id: `temp-${Date.now()}`,
+        chatId: chatId,
+        content: messageContent,
+        senderId: user.id,
+        sender: {
+          id: user.id,
+          username: user.username,
+          avatar: user.avatar
+        },
+        createdAt: new Date().toISOString(),
+        isTemp: true // Flag to identify temporary messages
+      };
       
-      // Changed from sendChatMessage to sendMessage to match the API service
-      const response = await chatAPI.sendMessage(selectedChat.id, messageContent);
+      setMessages((prev) => [...prev, tempMessage]);
+      scrollToBottom();
+      
+      // First send via API to save to database
+      const response = await chatAPI.sendMessage(chatId, messageContent);
       const sentMessage = response.data;
       
-      console.log('✅ Message sent successfully:', sentMessage.id);
+      // Replace the temporary message with the real one
+      setMessages((prev) => 
+        prev.map(msg => 
+          msg.id === tempMessage.id ? sentMessage : msg
+        )
+      );
       
-      setMessages(prev => [...prev, sentMessage]);
-      scrollToBottom();
+      // Also send via socket for real-time delivery
+      if (socketConnected) {
+        socketService.sendMessage(selectedChat.otherUser.id, {
+          chatId: chatId,
+          content: messageContent,
+          senderId: user.id,
+          createdAt: new Date().toISOString()
+        });
+      }
+      
+      // Refresh chat list to update last message
       fetchChats();
       
     } catch (error) {
       console.error('❌ Error sending message:', error);
+      
+      // Remove the temporary message if sending failed
+      setMessages((prev) => prev.filter(msg => msg.id !== `temp-${Date.now()}`));
+      
+      // Show error message
       alert('Failed to send message. Please try again.');
-      setNewMessage(messageContent);
+      setNewMessage(messageContent); // Restore the message if failed
     }
   };
 
@@ -175,6 +290,23 @@ const Chat = () => {
     }
   };
 
+  // Add this component for unauthorized access
+  const AccessDeniedMessage = () => (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center p-6 bg-red-50 rounded-lg">
+        <div className="text-4xl mb-4">🔒</div>
+        <h3 className="text-xl font-semibold mb-2 text-red-700">Access Denied</h3>
+        <p className="text-gray-700">You do not have permission to view this conversation.</p>
+        <button 
+          onClick={() => setSelectedChat(null)}
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          Go Back
+        </button>
+      </div>
+    </div>
+  );
+
   if (!isAuthenticated) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 text-center">
@@ -191,10 +323,17 @@ const Chat = () => {
           {/* Chat List Sidebar */}
           <div className="w-1/3 border-r border-gray-200 flex flex-col">
             <div className="p-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                {chats.length} conversation{chats.length !== 1 ? 's' : ''}
-              </p>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {chats.length} private conversation{chats.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="flex items-center text-xs text-gray-500">
+                  <span className="mr-1">🔒</span> Private
+                </div>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -396,6 +535,33 @@ const Chat = () => {
               className="mt-2 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
             >
               Refresh Data
+            </button>
+          </div>
+        </div>
+      )}
+
+      {debugMode && (
+        <div className="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg text-xs z-50 max-w-xs">
+          <h4 className="font-bold mb-2">Debug Panel</h4>
+          <div className="space-y-1">
+            <p><b>API Status:</b> {loading ? 'Loading...' : '404 (Using Mock)'}</p>
+            <p><b>Socket:</b> {socketConnected ? 'Connected' : 'Disconnected'}</p>
+            <p><b>User:</b> {user?.id || 'Not logged in'}</p>
+            <p><b>Chats:</b> {chats.length}</p>
+            <p><b>Selected:</b> {selectedChat?.id || 'None'}</p>
+          </div>
+          <div className="mt-2 flex space-x-2">
+            <button 
+              className="bg-blue-600 px-2 py-1 rounded text-xs"
+              onClick={fetchChats}
+            >
+              Refresh
+            </button>
+            <button 
+              className="bg-gray-600 px-2 py-1 rounded text-xs"
+              onClick={() => mockChatAPI.initializeMockData()}
+            >
+              Reset Mocks
             </button>
           </div>
         </div>

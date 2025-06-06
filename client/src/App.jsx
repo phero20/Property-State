@@ -16,6 +16,8 @@ import Test from './pages/test'; // Changed to lowercase
 import AddPost from './pages/AddPost';
 import socketService from './services/socket';
 import './index.css';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 
 function App() {
   const { user } = useAuth();
@@ -91,6 +93,17 @@ function App() {
           </Layout>
         </ApiStatusProvider>
       </BrowserRouter>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </AuthProvider>
   );
 }

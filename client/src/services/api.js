@@ -1,4 +1,5 @@
 import axios from 'axios';
+import mockChatAPI from './mockChatAPI';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://your-production-api.com/api'
@@ -358,118 +359,111 @@ export const postAPI = {
   unsavePost: (id) => api.delete(`/posts/${id}/save`),
 };
 
-// Chat/Messages API
+// Import the mock chat API for development use
+// Update your chatAPI object to use the correct endpoint
 export const chatAPI = {
   // Get all conversations for current user
   getChats: async () => {
+    console.log('🔄 API Request: GET /chat/conversations');
+    
     try {
-      const response = await api.get('/chat/conversations');
-      return response;
+      // Try real API first
+      try {
+        const response = await api.get(`/chat/conversations`); // Remove userId parameter
+        console.log('✅ API Success: Fetched chats');
+        return response;
+      } catch (error) {
+        console.log('❌ API Error:', error.message);
+        console.log('🔄 Falling back to mock chat API');
+        return await mockChatAPI.getChats();
+      }
     } catch (error) {
-      console.log('❌ Failed to fetch chats:', error.message);
-      // Use fallback data from localStorage for development
-      const mockChats = JSON.parse(localStorage.getItem('userChats') || '[]');
-      return { data: mockChats };
+      console.log('❌ Error in chatAPI.getChats:', error.message);
+      return { data: [] };
     }
   },
   
   // Get messages for a specific chat
   getMessages: async (chatId) => {
+    console.log(`🔄 API Request: GET /chat/${chatId}/messages`);
+    
     try {
-      const response = await api.get(`/chat/${chatId}/messages`);
-      return response;
+      // Try real API first
+      try {
+        const response = await api.get(`/chat/${chatId}/messages`);
+        console.log('✅ API Success: Fetched messages');
+        return response;
+      } catch (error) {
+        console.log('❌ API Error:', error.message);
+        console.log('🔄 Falling back to mock chat API');
+        return await mockChatAPI.getMessages(chatId);
+      }
     } catch (error) {
-      console.log('❌ Failed to fetch messages:', error.message);
-      // Use fallback data from localStorage for development
-      const chatMessages = JSON.parse(localStorage.getItem(`chat_${chatId}_messages`) || '[]');
-      return { data: chatMessages };
+      console.log('❌ Error in chatAPI.getMessages:', error.message);
+      return { data: [] };
     }
   },
   
   // Create a new chat with another user
-  createChat: async (userId, propertyId) => {
+  createChat: async (userId, propertyId = null) => {
+    console.log(`🔄 Creating chat with user: ${userId}${propertyId ? ` for property: ${propertyId}` : ''}`);
+    
     try {
-      const response = await api.post('/chat', { userId, propertyId });
-      return response;
-    } catch (error) {
-      console.log('❌ Failed to create chat:', error.message);
-      // Create a mock chat for development
-      const mockChat = {
-        id: `chat_${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastMessage: '',
-        participantInfo: {
-          id: userId,
-          username: `user_${userId.substring(0, 5)}`,
-          avatar: null
-        }
-      };
-      
-      // Store in localStorage for persistence during development
-      const existingChats = JSON.parse(localStorage.getItem('userChats') || '[]');
-      existingChats.push(mockChat);
-      localStorage.setItem('userChats', JSON.stringify(existingChats));
-      
-      return { data: mockChat };
-    }
-  },
-  
-  // Send a message in a chat
-  sendMessage: async (chatId, messageContent) => {
-    try {
-      const response = await api.post(`/chat/${chatId}/messages`, { content: messageContent });
-      return response;
-    } catch (error) {
-      console.log('❌ Failed to send message:', error.message);
-      // Create a mock message for development
-      const userData = localStorage.getItem('user');
-      const user = userData ? JSON.parse(userData) : { id: 'current_user' };
-      
-      const newMessage = {
-        id: `msg_${Date.now()}`,
-        chatId: chatId,
-        content: messageContent,
-        senderId: user.id,
-        createdAt: new Date().toISOString()
-      };
-      
-      // Update localStorage
-      const chatMessages = JSON.parse(localStorage.getItem(`chat_${chatId}_messages`) || '[]');
-      chatMessages.push(newMessage);
-      localStorage.setItem(`chat_${chatId}_messages`, JSON.stringify(chatMessages));
-      
-      // Update last message in chat list
-      const existingChats = JSON.parse(localStorage.getItem('userChats') || '[]');
-      const chatIndex = existingChats.findIndex(chat => chat.id === chatId);
-      if (chatIndex !== -1) {
-        existingChats[chatIndex].lastMessage = {
-          content: messageContent,
-          createdAt: new Date().toISOString()
-        };
-        existingChats[chatIndex].updatedAt = new Date().toISOString();
-        localStorage.setItem('userChats', JSON.stringify(existingChats));
+      // Prepare request payload
+      const payload = { userId };
+      if (propertyId && propertyId !== 'undefined' && propertyId !== 'null') {
+        payload.propertyId = propertyId;
       }
       
-      return { data: newMessage };
+      console.log('📤 Request payload:', payload);
+      
+      const response = await api.post(`/chat`, payload);
+      console.log('✅ Chat created/retrieved:', response.data);
+      return response;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message;
+      const errorDetails = error.response?.data?.error || 'No details available';
+      
+      console.error('❌ Error creating chat:', errorMessage);
+      console.error('❌ Error details:', errorDetails);
+      
+      // Log the request details for debugging
+      console.error('❌ Failed request details:', {
+        url: '/chat',
+        method: 'POST',
+        payload: { userId, propertyId },
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
+      
+      throw error;
     }
   },
   
-  // Mark a chat as read
+  // Send a message in a chat - FIXED URL
+  sendMessage: async (chatId, content) => {
+    console.log(`🔄 Sending message to chat ${chatId}: ${content.substring(0, 30)}${content.length > 30 ? '...' : ''}`);
+    
+    try {
+      // Remove the duplicate /api/ prefix
+      const response = await api.post(`/chat/${chatId}/messages`, { content });
+      console.log('✅ Message sent:', response.data);
+      return response;
+    } catch (error) {
+      console.error('❌ Error sending message:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // Fix the other methods too
   markChatAsRead: async (chatId) => {
     try {
+      // Remove the duplicate /api/ prefix
       const response = await api.put(`/chat/${chatId}/read`);
       return response;
     } catch (error) {
-      console.log('❌ Failed to mark chat as read:', error.message);
-      // Update localStorage for development
-      const existingChats = JSON.parse(localStorage.getItem('userChats') || '[]');
-      const chatIndex = existingChats.findIndex(chat => chat.id === chatId);
-      if (chatIndex !== -1 && existingChats[chatIndex].unreadCount) {
-        existingChats[chatIndex].unreadCount = 0;
-        localStorage.setItem('userChats', JSON.stringify(existingChats));
-      }
-      return { data: { success: true } };
+      console.error('❌ Error marking chat as read:', error);
+      return { data: { success: false } };
     }
   }
 };
@@ -514,12 +508,25 @@ export const messageAPI = {
 export const debugAPI = {
   getDBStats: async () => {
     try {
-      return await api.get('/db-stats');
+      const response = await api.get('/debug/db-stats');
+      console.log('📊 Database stats:', response.data);
+      return response;
     } catch (error) {
       console.error('❌ Error fetching DB stats:', error);
       return { data: null, error: error.message };
     }
   },
+  
+  checkAuth: async () => {
+    try {
+      const response = await api.get('/debug/auth-check');
+      console.log('🔑 Auth check:', response.data);
+      return response;
+    } catch (error) {
+      console.error('❌ Auth check error:', error);
+      return { data: null, error: error.message };
+    }
+  }
 };
 
 export default api;
