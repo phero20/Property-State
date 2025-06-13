@@ -1,18 +1,8 @@
 import React from 'react';
-import OfflineNotice from './OfflineNotice';
-import { useApiStatus } from '../context/ApiStatusContext';
 
-// We'll reuse the API status from the context instead of checking again
+// Always pass through children without checking API status
 const ServerStatusChecker = ({ children }) => {
-  const { isApiOnline } = useApiStatus();
-
-  // No need for a separate check since we're using ApiStatusContext
-  return (
-    <>
-      {!isApiOnline && <OfflineNotice />}
-      {children}
-    </>
-  );
+  return <>{children}</>;
 };
 
 export default ServerStatusChecker;

@@ -35,6 +35,17 @@ const Navbar = () => {
     setIsMenuOpen(false);
   };
 
+  const handleAddProperty = (e) => {
+    // If not authenticated, redirect to login
+    if (!isAuthenticated) {
+      e.preventDefault();
+      navigate('/login', { 
+        state: { from: '/add-post', message: 'Please login to add a property' } 
+      });
+    } 
+    // Otherwise do nothing - the Link will navigate normally
+  };
+
   return (
     <nav className="bg-white shadow-lg">
       <div className="container mx-auto px-4">
@@ -54,8 +65,9 @@ const Navbar = () => {
                 <Link
                   to="/add-post"
                   className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                  onClick={handleAddProperty}
                 >
-                  Add Property
+                  + Add Property
                 </Link>
                 <Link to="/chat" className="text-gray-700 hover:text-blue-600 transition-colors relative">
                   Messages
@@ -163,10 +175,10 @@ const Navbar = () => {
                   
                   <Link 
                     to="/add-post" 
-                    className="text-gray-700 hover:text-blue-600 py-2 px-2 rounded hover:bg-gray-50 transition-colors"
-                    onClick={closeMenu}
+                    className="block py-2 text-gray-700 hover:text-blue-600" 
+                    onClick={handleAddProperty}
                   >
-                    Add Property
+                    + Add Property
                   </Link>
                   <Link 
                     to="/chat" 

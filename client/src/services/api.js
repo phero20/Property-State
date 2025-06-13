@@ -17,56 +17,24 @@ const api = axios.create({
 // Add request interceptor to include auth token
 api.interceptors.request.use(
   (config) => {
-    console.log(`🔄 API Request: ${config.method?.toUpperCase()} ${config.url}`);
-    
-    // Get user data from localStorage
+    // Get token from localStorage
     const userData = localStorage.getItem('user');
     if (userData) {
       try {
         const user = JSON.parse(userData);
         
-        // Add authentication headers
+        // Add authentication headers without logging
         if (user.token) {
-          // Ensure token is actually a JWT (should start with eyJ)
-          if (typeof user.token === 'string' && user.token.startsWith('eyJ')) {
-            config.headers['Authorization'] = `Bearer ${user.token}`;
-            console.log('🔐 Added valid JWT Bearer token');
-          } else {
-            // Use user ID as a fallback
-            config.headers['Authorization'] = `${user.id}`;
-            // Add additional headers for identification
-            config.headers['x-user-id'] = user.id;
-            config.headers['x-user-email'] = user.email;
-            config.headers['x-user-username'] = user.username;
-            console.log('🔐 Added user ID as auth token fallback');
-          }
-        } else {
-          // No token, use user ID as fallback authentication
-          config.headers['Authorization'] = `${user.id}`;
-          config.headers['x-user-id'] = user.id;
-          config.headers['x-user-email'] = user.email;
-          config.headers['x-user-username'] = user.username;
-          console.log('🔐 Added user ID as fallback authentication');
+          config.headers['Authorization'] = `Bearer ${user.token}`;
         }
-        
-        console.log('🔐 Auth headers added:', { 
-          userId: user.id, 
-          email: user.email, 
-          username: user.username,
-          hasToken: !!user.token,
-          tokenType: user.token ? (user.token.startsWith('eyJ') ? 'JWT' : 'other') : 'none'
-        });
       } catch (error) {
-        console.error('❌ Error parsing user data for auth:', error);
+        // Silent error handling
       }
-    } else {
-      console.warn('⚠️ No token provided - user not authenticated');
     }
     
     return config;
   },
   (error) => {
-    console.error('❌ Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -318,15 +286,11 @@ export const postAPI = {
     try {
       console.log('📝 Creating new post via API:', postData.title);
       
-      // Get the current user from localStorage for backup in case token fails
+      // Make sure we have a proper user connection
       const userData = localStorage.getItem('user');
       const currentUser = userData ? JSON.parse(userData) : null;
       
-      // Make sure we have a proper user connection
       if (!postData.user || !postData.user.connect || !postData.user.connect.id) {
-        console.log('⚠️ No user connection found, adding from token/localStorage');
-        
-        // Add user connection from localStorage as fallback
         if (currentUser && currentUser.id) {
           postData = {
             ...postData,
@@ -335,13 +299,16 @@ export const postAPI = {
             }
           };
           console.log('👤 Added user connection from localStorage:', currentUser.id);
+        } else {
+          console.error('❌ No user ID available for post creation');
+          throw new Error('User authentication required');
         }
       }
       
       console.log('📤 Sending post data with user connection:', 
         postData.user?.connect?.id || 'No user connection!');
       
-      // Check if we have all required fields for debugging
+      // Check for required fields for debugging
       if (!postData.title) console.warn('⚠️ Missing title in post data');
       if (!postData.price) console.warn('⚠️ Missing price in post data');
       if (!postData.city) console.warn('⚠️ Missing city in post data');
@@ -351,12 +318,12 @@ export const postAPI = {
       const response = await api.post('/posts', postData);
       
       console.log('✅ Post created successfully via API');
-      return response;
+      return response.data;
     } catch (error) {
       console.error('❌ Error creating post:', error);
       
       if (error.response?.data) {
-        console.error('📄 Server error details:', error.response.data);
+        console.error('Server error details:', error.response.data);
       }
       
       throw error;
@@ -512,31 +479,6 @@ export const messageAPI = {
       return { data: [] };
     }
   },
-};
-
-// Debug API - Database statistics and health check
-export const debugAPI = {
-  getDBStats: async () => {
-    try {
-      const response = await api.get('/debug/db-stats');
-      console.log('📊 Database stats:', response.data);
-      return response;
-    } catch (error) {
-      console.error('❌ Error fetching DB stats:', error);
-      return { data: null, error: error.message };
-    }
-  },
-  
-  checkAuth: async () => {
-    try {
-      const response = await api.get('/debug/auth-check');
-      console.log('🔑 Auth check:', response.data);
-      return response;
-    } catch (error) {
-      console.error('❌ Auth check error:', error);
-      return { data: null, error: error.message };
-    }
-  }
 };
 
 export default api;

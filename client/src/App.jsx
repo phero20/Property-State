@@ -88,7 +88,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/add-post" element={<AddPost />} />
+              <Route
+                path="/add-post"
+                element={
+                  <ProtectedRoute>
+                    <AddPost />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </Layout>
         </ApiStatusProvider>

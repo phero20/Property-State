@@ -281,7 +281,7 @@ const Posts = () => {
       </div>
 
       {/* Development Debug Info */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* {process.env.NODE_ENV === 'development' && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
           <h3 className="text-gray-800 font-semibold mb-2">🔧 Debug Info (Development Only)</h3>
           <div className="text-sm text-gray-700 space-y-1">
@@ -298,7 +298,7 @@ const Posts = () => {
             </details>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* API Status Message */}
       {isUsingMockData && (

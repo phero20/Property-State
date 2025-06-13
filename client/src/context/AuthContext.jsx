@@ -196,6 +196,63 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Add this function to refresh user data
+  const refreshUserData = async () => {
+    try {
+      if (user && user.id) {
+        const response = await userAPI.getUserProfile(user.id);
+        if (response.data) {
+          // Update only user data, not token
+          setUser(prev => ({ 
+            ...prev, 
+            ...response.data,
+            token: prev.token // Keep existing token
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
+
+  // Call this when needed
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshUserData();
+    }
+  }, [isAuthenticated]);
+
+  const checkAuthStatus = () => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        if (parsedUser && parsedUser.token) {
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing stored user data:', error);
+      }
+    }
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  const validateToken = (token) => {
+    if (!token) return false;
+    
+    try {
+      // For JWT tokens
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 > Date.now(); // Check if token is expired
+    } catch (e) {
+      console.error('Error validating token:', e);
+      return false;
+    }
+  };
+
   const value = {
     user,
     isAuthenticated,

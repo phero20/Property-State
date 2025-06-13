@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePosts } from '../hooks/usePosts';
 
 const AddPost = () => {
-  const { user, isAuthenticated } = useAuth();
-  const { createPost } = usePosts(); // Use the hook instead of direct API call
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const { createPost } = usePosts();
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState([]);
@@ -36,14 +37,21 @@ const AddPost = () => {
     restaurant: ''
   });
 
-  // Prevent form from disappearing by checking authentication
-  React.useEffect(() => {
-    if (!isAuthenticated) {
-      alert('Please login to create a post');
-      navigate('/login');
-    }
-  }, [isAuthenticated, navigate]);
+  // REMOVE or ADJUST this if it exists
+  // useEffect(() => {
+  //   if (!isAuthenticated) {
+  //     navigate('/login', { 
+  //       state: { from: '/add-post', message: 'Please login to add a property' } 
+  //     });
+  //   }
+  // }, [isAuthenticated, navigate]);
 
+  // Instead, only check when the component renders for the first time
+  useEffect(() => {
+    console.log('AddPost component mounted, auth status:', isAuthenticated);
+    // No automatic redirect here
+  }, []);
+  
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -198,31 +206,18 @@ const AddPost = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Double-check authentication
     if (!isAuthenticated || !user) {
-      alert('Please login to create a post');
-      navigate('/login');
+      alert('Please login to create a property listing');
+      navigate('/login', { 
+        state: { from: '/add-post', message: 'Please login to add a property' } 
+      });
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log('📝 Submitting post with complete owner info...');
-      console.log('👤 Current user data:', user);
-      
-      // Calculate total payload size
-      const imagesSizeKB = formData.images.reduce((total, img) => {
-        return total + (img.length * 0.75) / 1024;
-      }, 0);
-      
-      console.log(`📦 Total images size: ${(imagesSizeKB / 1024).toFixed(2)}MB`);
-      
-      if (imagesSizeKB > 40 * 1024) {
-        alert('Images are too large. Please remove some images or use smaller files.');
-        setLoading(false);
-        return;
-      }
-      
       // IMPORTANT: Make sure to properly format the post data with user connection
       const postData = {
         title: formData.title,
@@ -237,12 +232,11 @@ const AddPost = () => {
         property: formData.property,
         images: formData.images,
         
-        // THIS IS CRITICAL - ensure user connection is properly formatted
+        // THIS IS THE KEY PART - explicitly pass user ID in the proper format
         user: {
           connect: { id: user.id }
         },
         
-        // Use proper nested structure for post details
         postDetail: {
           create: {
             desc: postDetail.desc || '',
@@ -257,60 +251,62 @@ const AddPost = () => {
         }
       };
 
-      console.log('📤 Sending post data with user ID:', user.id);
+      console.log('📤 Sending post data with user connection:', JSON.stringify({
+        userId: user.id,
+        userConnection: postData.user
+      }));
+
+      // If using Option 1 (usePosts hook):
       const result = await createPost(postData);
+      
+      // OR if using Option 2 (postAPI):
+      // const result = await postAPI.createPost(postData);
+      
       console.log('✅ Post created successfully:', result);
       
-      alert('Post created successfully! Your property listing is now live.');
-      
-      // Clear form
-      setFormData({
-        title: '',
-        price: '',
-        address: '',
-        city: '',
-        bedroom: '',
-        bathroom: '',
-        latitude: '',
-        longitude: '',
-        type: 'rent',
-        property: 'apartment',
-        images: []
-      });
-      setPostDetail({
-        desc: '',
-        utilities: '',
-        pet: '',
-        income: '',
-        size: '',
-        school: '',
-        bus: '',
-        restaurant: ''
-      });
-      setImages([]);
-      
-      // Navigate to posts page
+      alert('Property listing created successfully!');
       navigate('/posts');
       
     } catch (error) {
       console.error('❌ Error creating post:', error);
       
-      // Add more detailed error logging
-      if (error.response) {
+      if (error.response?.data) {
         console.error('🔍 Server error details:', error.response.data);
-        console.error('🔍 Status code:', error.response.status);
         
+        // Show specific error messages
         if (error.response.data?.error?.includes('user')) {
-          alert(`User authentication error: ${error.response.data.message || 'Please login again'}`);
+          console.error('🔍 Status code:', error.response.status);
+          
+          // If there's an authentication issue, redirect to login
+          if (error.response.status === 401 || error.response.status === 403) {
+            alert('Your session has expired. Please login again.');
+            logout(); // Make sure you have access to logout function
+            navigate('/login');
+            return;
+          }
+          
+          alert(`Error: There was a problem with user authentication. Please try logging in again.`);
         } else {
           alert(`Error: ${error.response.data?.message || error.message}`);
         }
       } else {
-        // Generic error handling
-        alert('Error creating post. Please try again.');
+        alert('Error creating property listing. Please try again.');
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddProperty = (e) => {
+    console.log('Add Property clicked, auth status:', isAuthenticated);
+    if (!isAuthenticated) {
+      e.preventDefault();
+      console.log('Redirecting to login...');
+      navigate('/login', { 
+        state: { from: '/add-post', message: 'Please login to add a property' } 
+      });
+    } else {
+      console.log('Navigating to add property form...');
     }
   };
 

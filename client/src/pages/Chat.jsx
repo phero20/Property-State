@@ -645,7 +645,7 @@ const Chat = () => {
         </div>
       </div>
 
-      {debugMode && (
+      {/* {debugMode && (
         <div className="p-3 bg-gray-100 border-t text-xs">
           <div className="mb-2 font-semibold">Debug Info:</div>
           <div className="space-y-1">
@@ -666,9 +666,9 @@ const Chat = () => {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
-      {debugMode && (
+      {/* {debugMode && (
         <div className="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg text-xs z-50 max-w-xs">
           <h4 className="font-bold mb-2">Debug Panel</h4>
           <div className="space-y-1">
@@ -693,7 +693,7 @@ const Chat = () => {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
       {selectedChat && showUserInfoModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
