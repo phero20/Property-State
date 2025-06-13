@@ -165,167 +165,100 @@ export const addPost = async (req, res) => {
   try {
     const body = req.body;
     const tokenUserId = req.userId;
-
-    console.log('📝 Creating post in DATABASE:', body.title);
-    console.log('👤 User ID from token:', tokenUserId);
-
+    
+    console.log('📝 Creating post from request:', body.title);
+    
     // Validate required fields
     if (!body.title || !body.price || !body.city) {
       return res.status(400).json({ message: "Missing required fields" });
     }
-
-    // Ensure numeric values are properly parsed and handle potential strings
-    const numericPrice = typeof body.price === 'string' ? parseFloat(body.price) : body.price;
-    const numericBedroom = body.bedroom ? (typeof body.bedroom === 'string' ? parseInt(body.bedroom) : body.bedroom) : 0;
-    const numericBathroom = body.bathroom ? (typeof body.bathroom === 'string' ? parseFloat(body.bathroom) : body.bathroom) : 0.0;
     
-    // Handle coordinates - set to null if they cause issues
-    let latitude = null;
-    let longitude = null;
-    
-    if (body.latitude !== undefined && body.latitude !== null) {
-      try {
-        latitude = typeof body.latitude === 'string' ? parseFloat(body.latitude) : body.latitude;
-      } catch (e) {
-        console.warn('⚠️ Could not parse latitude, setting to null');
-      }
+    // Extract user connection - either from body or token
+    let userConnection;
+    if (body.user?.connect?.id) {
+      // If client sent user connection object
+      userConnection = body.user;
+    } else {
+      // If client sent userId or using token
+      userConnection = {
+        connect: { id: tokenUserId }
+      };
     }
     
-    if (body.longitude !== undefined && body.longitude !== null) {
-      try {
-        longitude = typeof body.longitude === 'string' ? parseFloat(body.longitude) : body.longitude;
-      } catch (e) {
-        console.warn('⚠️ Could not parse longitude, setting to null');
-      }
-    }
-
-    // Create post with postDetail in database - handle potential errors with coordinates
-    try {
-      const newPost = await prisma.post.create({
-        data: {
-          title: body.title,
-          price: numericPrice,
-          images: body.images || [],
-          address: body.address || '',
-          city: body.city,
-          bedroom: numericBedroom,
-          bathroom: numericBathroom,
-          // Skip coordinates if they could cause issues
-          // latitude: latitude,
-          // longitude: longitude,
-          type: body.type || 'rent',
-          property: body.property || 'apartment',
-          userId: tokenUserId,
-          postDetail: body.postDetail ? {
-            create: {
-              desc: body.postDetail.desc || '',
-              utilities: body.postDetail.utilities || '',
-              pet: body.postDetail.pet || '',
-              income: body.postDetail.income || '',
-              size: body.postDetail.size ? parseInt(body.postDetail.size) : null,
-              school: body.postDetail.school ? parseInt(body.postDetail.school) : null,
-              bus: body.postDetail.bus ? parseInt(body.postDetail.bus) : null,
-              restaurant: body.postDetail.restaurant ? parseInt(body.postDetail.restaurant) : null,
-            }
-          } : undefined
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              email: true,
-              avatar: true,
-              createdAt: true
-            }
-          },
-          postDetail: true
-        }
-      });
-
-      // Transform response to include ownerInfo
-      const responsePost = {
-        ...newPost,
-        ownerInfo: {
-          id: newPost.user.id,
-          username: newPost.user.username,
-          email: newPost.user.email,
-          fullName: newPost.user.username,
-          avatar: newPost.user.avatar,
-          verified: false,
-          showContactInfo: true,
-          memberSince: newPost.user.createdAt,
-          location: `${newPost.city}`,
-          userType: 'standard'
+    // Parse numeric fields
+    const numericPrice = parseFloat(body.price);
+    const numericBedroom = body.bedroom ? parseInt(body.bedroom) : 0;
+    const numericBathroom = body.bathroom ? parseFloat(body.bathroom) : 0;
+    
+    // Handle post detail creation
+    let postDetailCreate;
+    if (body.postDetail?.create) {
+      // Client sent properly formatted nested create
+      postDetailCreate = body.postDetail;
+    } else {
+      // Client sent flattened structure - recreate proper structure
+      postDetailCreate = {
+        create: {
+          desc: body.desc || body.description || '',
+          utilities: body.utilities || '',
+          pet: body.pet || '',
+          income: body.income || '',
+          size: body.size ? parseInt(body.size) : null,
+          school: body.school ? parseInt(body.school) : null,
+          bus: body.bus ? parseInt(body.bus) : null,
+          restaurant: body.restaurant ? parseInt(body.restaurant) : null,
         }
       };
-
-      console.log('✅ Post created successfully in DATABASE:', newPost.id);
-      res.status(201).json(responsePost);
-      
-    } catch (innerErr) {
-      // If post creation fails due to coordinate types, try again without them
-      console.warn('⚠️ Post creation failed, retrying without coordinates:', innerErr.message);
-      
-      const newPost = await prisma.post.create({
-        data: {
-          title: body.title,
-          price: numericPrice,
-          images: body.images || [],
-          address: body.address || '',
-          city: body.city,
-          bedroom: numericBedroom,
-          bathroom: numericBathroom,
-          // Skip problematic fields
-          type: body.type || 'rent',
-          property: body.property || 'apartment',
-          userId: tokenUserId,
-          postDetail: body.postDetail ? {
-            create: {
-              desc: body.postDetail.desc || '',
-              utilities: body.postDetail.utilities || '',
-              pet: body.postDetail.pet || '',
-              income: body.postDetail.income || '',
-              size: body.postDetail.size ? parseInt(body.postDetail.size) : null,
-              school: body.postDetail.school ? parseInt(body.postDetail.school) : null,
-              bus: body.postDetail.bus ? parseInt(body.postDetail.bus) : null,
-              restaurant: body.postDetail.restaurant ? parseInt(body.postDetail.restaurant) : null,
-            }
-          } : undefined
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              email: true,
-              avatar: true,
-              createdAt: true
-            }
-          },
-          postDetail: true
-        }
-      });
-      
-      const responsePost = {
-        ...newPost,
-        ownerInfo: {
-          id: newPost.user.id,
-          username: newPost.user.username,
-          email: newPost.user.email,
-          fullName: newPost.user.username,
-          avatar: newPost.user.avatar,
-          verified: false,
-          showContactInfo: true,
-          memberSince: newPost.user.createdAt,
-          location: `${newPost.city}`,
-          userType: 'standard'
-        }
-      };
-
-      console.log('✅ Post created successfully (without coordinates) in DATABASE:', newPost.id);
-      res.status(201).json(responsePost);
     }
+    
+    // Create post with proper structure
+    const newPost = await prisma.post.create({
+      data: {
+        title: body.title,
+        price: numericPrice,
+        images: body.images || [],
+        address: body.address || '',
+        city: body.city,
+        bedroom: numericBedroom,
+        bathroom: numericBathroom,
+        type: body.type || 'rent',
+        property: body.property || 'apartment',
+        user: userConnection,
+        postDetail: postDetailCreate
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            avatar: true,
+            createdAt: true
+          }
+        },
+        postDetail: true
+      }
+    });
+    
+    // Transform response to include ownerInfo
+    const responsePost = {
+      ...newPost,
+      ownerInfo: {
+        id: newPost.user.id,
+        username: newPost.user.username,
+        email: newPost.user.email,
+        fullName: newPost.user.username,
+        avatar: newPost.user.avatar,
+        verified: false,
+        showContactInfo: true,
+        memberSince: newPost.user.createdAt,
+        location: `${newPost.city}`,
+        userType: 'standard'
+      }
+    };
+
+    console.log('✅ Post created successfully in DATABASE:', newPost.id);
+    res.status(201).json(responsePost);
     
   } catch (err) {
     console.error('❌ Database error creating post:', err);

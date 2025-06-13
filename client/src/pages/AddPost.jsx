@@ -68,26 +68,40 @@ const AddPost = () => {
       const img = new Image();
       
       img.onload = () => {
-        // Calculate new dimensions
+        // Calculate new dimensions - more aggressive resizing
         let { width, height } = img;
         
-        if (width > height) {
-          if (width > maxWidth) {
-            height = (height * maxWidth) / width;
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxWidth) {
-            width = (width * maxWidth) / height;
-            height = maxWidth;
-          }
+        // Calculate target dimensions to keep file size reasonable
+        let targetWidth = width;
+        
+        // For large images, scale down more aggressively
+        if (width > 1600) {
+          targetWidth = 800; // Very large images become 800px wide
+        } else if (width > 1200) {
+          targetWidth = 700; // Large images become 700px wide
+        } else if (width > 800) {
+          targetWidth = 600; // Medium-large images become 600px wide
+        } else if (width > 600) {
+          targetWidth = 500; // Medium images remain 500px wide
+        } else if (width > 400) {
+          targetWidth = 400; // Smaller images remain as is
         }
+        
+        // Calculate new height to maintain aspect ratio
+        const scaleFactor = targetWidth / width;
+        height = Math.round(height * scaleFactor);
+        width = targetWidth;
         
         canvas.width = width;
         canvas.height = height;
         
         // Draw and compress
+        ctx.fillStyle = '#FFFFFF'; // White background
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
+        
+        // Use a lower quality for JPEG for smaller file size
+        const actualQuality = file.size > 1024 * 1024 ? 0.6 : 0.75; // Lower quality for large files
         
         // Convert to blob with compression
         canvas.toBlob(
@@ -97,7 +111,7 @@ const AddPost = () => {
             reader.readAsDataURL(blob);
           },
           'image/jpeg',
-          quality
+          actualQuality
         );
       };
       
@@ -209,34 +223,8 @@ const AddPost = () => {
         return;
       }
       
-      // Create complete owner information from user profile
-      const completeOwnerInfo = {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        fullName: user.fullName || user.username,
-        phone: user.phone || null,
-        avatar: user.avatar || null,
-        verified: user.verified || false,
-        
-        // Location information
-        location: user.location || (user.city && user.state ? `${user.city}, ${user.state}` : ''),
-        city: user.city || '',
-        state: user.state || '',
-        country: user.country || '',
-        
-        // Account details
-        userType: user.userType || 'standard',
-        memberSince: user.createdAt,
-        lastActive: new Date().toISOString(),
-        
-        // Contact preferences
-        showContactInfo: user.showContactInfo ?? true,
-        profileVisibility: user.profileVisibility || 'public',
-      };
-      
+      // IMPORTANT: Make sure to properly format the post data with user connection
       const postData = {
-        // Basic property information
         title: formData.title,
         price: parseInt(formData.price),
         address: formData.address,
@@ -249,40 +237,29 @@ const AddPost = () => {
         property: formData.property,
         images: formData.images,
         
-        // Owner information (complete profile data)
-        userId: user.id,
-        ownerInfo: completeOwnerInfo,
-        
-        // Property details
-        postDetail: {
-          desc: postDetail.desc || '',
-          utilities: postDetail.utilities || '',
-          pet: postDetail.pet || '',
-          income: postDetail.income || '',
-          size: postDetail.size ? parseInt(postDetail.size) : null,
-          school: postDetail.school ? parseInt(postDetail.school) : null,
-          bus: postDetail.bus ? parseInt(postDetail.bus) : null,
-          restaurant: postDetail.restaurant ? parseInt(postDetail.restaurant) : null,
+        // THIS IS CRITICAL - ensure user connection is properly formatted
+        user: {
+          connect: { id: user.id }
         },
         
-        // Metadata
-        status: 'active',
-        featured: false,
+        // Use proper nested structure for post details
+        postDetail: {
+          create: {
+            desc: postDetail.desc || '',
+            utilities: postDetail.utilities || '',
+            pet: postDetail.pet || '',
+            income: postDetail.income || '',
+            size: postDetail.size ? parseInt(postDetail.size) : null,
+            school: postDetail.school ? parseInt(postDetail.school) : null,
+            bus: postDetail.bus ? parseInt(postDetail.bus) : null,
+            restaurant: postDetail.restaurant ? parseInt(postDetail.restaurant) : null
+          }
+        }
       };
 
-      console.log('📝 Complete post data being submitted:', {
-        title: postData.title,
-        price: postData.price,
-        owner: postData.ownerInfo.username,
-        ownerEmail: postData.ownerInfo.email,
-        ownerPhone: postData.ownerInfo.phone,
-        ownerLocation: postData.ownerInfo.location,
-        images: postData.images.length,
-        hasDetails: !!postData.postDetail.desc
-      });
-
+      console.log('📤 Sending post data with user ID:', user.id);
       const result = await createPost(postData);
-      console.log('✅ Post created successfully:', result.post);
+      console.log('✅ Post created successfully:', result);
       
       alert('Post created successfully! Your property listing is now live.');
       
@@ -312,29 +289,25 @@ const AddPost = () => {
       });
       setImages([]);
       
-      // Navigate to posts page - this will trigger the posts hook to reload
+      // Navigate to posts page
       navigate('/posts');
-      
-      // Force a page refresh to ensure the new post is visible
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
       
     } catch (error) {
       console.error('❌ Error creating post:', error);
       
-      if (error.message?.includes('large')) {
-        alert('Images are too large. Please use smaller images or fewer images.');
-      } else if (error.message?.includes('auth')) {
-        alert('Authentication failed. Please login again.');
-        navigate('/login');
+      // Add more detailed error logging
+      if (error.response) {
+        console.error('🔍 Server error details:', error.response.data);
+        console.error('🔍 Status code:', error.response.status);
+        
+        if (error.response.data?.error?.includes('user')) {
+          alert(`User authentication error: ${error.response.data.message || 'Please login again'}`);
+        } else {
+          alert(`Error: ${error.response.data?.message || error.message}`);
+        }
       } else {
-        alert('Post created successfully! Your property listing is now available.');
-        navigate('/posts');
-        // Still refresh even on error since the post might have been created locally
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
+        // Generic error handling
+        alert('Error creating post. Please try again.');
       }
     } finally {
       setLoading(false);

@@ -318,37 +318,47 @@ export const postAPI = {
     try {
       console.log('📝 Creating new post via API:', postData.title);
       
-      // Format the data to ensure types are correct
-      const formattedPostData = {
-        ...postData,
-        // Convert numeric fields to proper types
-        price: parseFloat(postData.price),
-        bedroom: parseInt(postData.bedroom || 0),
-        bathroom: parseFloat(postData.bathroom || 0),
-        
-        // Ensure coordinates are numbers, not strings
-        latitude: postData.latitude ? parseFloat(postData.latitude) : null,
-        longitude: postData.longitude ? parseFloat(postData.longitude) : null,
-        
-        // Format post details
-        postDetail: postData.postDetail ? {
-          desc: postData.postDetail.desc || '',
-          utilities: postData.postDetail.utilities || '',
-          pet: postData.postDetail.pet || '',
-          income: postData.postDetail.income || '',
-          size: postData.postDetail.size ? parseInt(postData.postDetail.size) : null,
-          school: postData.postDetail.school ? parseInt(postData.postDetail.school) : null,
-          bus: postData.postDetail.bus ? parseInt(postData.postDetail.bus) : null,
-          restaurant: postData.postDetail.restaurant ? parseInt(postData.postDetail.restaurant) : null
-        } : {}
-      };
+      // Get the current user from localStorage for backup in case token fails
+      const userData = localStorage.getItem('user');
+      const currentUser = userData ? JSON.parse(userData) : null;
       
-      console.log('📤 Sending formatted post data:', formattedPostData);
-      const response = await api.post('/posts', formattedPostData);
-      console.log('✅ Post created via API');
+      // Make sure we have a proper user connection
+      if (!postData.user || !postData.user.connect || !postData.user.connect.id) {
+        console.log('⚠️ No user connection found, adding from token/localStorage');
+        
+        // Add user connection from localStorage as fallback
+        if (currentUser && currentUser.id) {
+          postData = {
+            ...postData,
+            user: {
+              connect: { id: currentUser.id }
+            }
+          };
+          console.log('👤 Added user connection from localStorage:', currentUser.id);
+        }
+      }
+      
+      console.log('📤 Sending post data with user connection:', 
+        postData.user?.connect?.id || 'No user connection!');
+      
+      // Check if we have all required fields for debugging
+      if (!postData.title) console.warn('⚠️ Missing title in post data');
+      if (!postData.price) console.warn('⚠️ Missing price in post data');
+      if (!postData.city) console.warn('⚠️ Missing city in post data');
+      if (!postData.user?.connect?.id) console.warn('⚠️ Missing user connection in post data');
+      
+      // Make the API call with the properly formatted data
+      const response = await api.post('/posts', postData);
+      
+      console.log('✅ Post created successfully via API');
       return response;
     } catch (error) {
       console.error('❌ Error creating post:', error);
+      
+      if (error.response?.data) {
+        console.error('📄 Server error details:', error.response.data);
+      }
+      
       throw error;
     }
   },
