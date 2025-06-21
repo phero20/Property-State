@@ -17,7 +17,7 @@ export const SocketProvider = ({ children }) => {
       transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
-      secure: true, // Enable secure connection
+      secure: true, // Enable secure connection for HTTPS
     });
 
     socketInstance.on('connect', () => {

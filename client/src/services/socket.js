@@ -1,10 +1,9 @@
 import { io } from 'socket.io-client';
 
-// Define the socket server URL with fallbacks
-const SOCKET_URL = 
-  process.env.NODE_ENV === 'production' 
-    ? window.location.origin 
-    : 'http://localhost:4001';
+// Define the socket server URL - use production URL
+const SOCKET_URL = 'https://property-state-socket.onrender.com';
+
+console.log('🔌 Using Socket URL:', SOCKET_URL);
 
 class SocketService {
   constructor() {
@@ -27,10 +26,11 @@ class SocketService {
     try {
       console.log('🔌 Connecting to socket server at:', SOCKET_URL);
       
-      // Try to connect to the socket server
+      // Try to connect to the socket server with HTTPS
       this.socket = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
-        query: { userId }
+        query: { userId },
+        secure: true // Ensure secure connection for HTTPS
       });
       
       this.userId = userId;

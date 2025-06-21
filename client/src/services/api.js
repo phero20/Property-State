@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { mockPosts } from './mockData';
 
 // Make sure we're using environment variables or hardcode the production URL
 const API_BASE_URL = 'https://property-state.onrender.com/api';
