@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { login } from '../services/authService';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const [formData, setFormData] = useState({
     emailOrUsername: '',
     password: '',
@@ -36,14 +35,11 @@ const Login = () => {
         password: formData.password
       };
 
-      console.log('🔐 Login attempt with:', { 
-        inputType: isEmail ? 'email' : 'username',
-        input: formData.emailOrUsername 
-      });
+      console.log('🔐 Login attempt with:', credentials);
 
-      const result = await login(credentials);
+      const response = await login(credentials);
       
-      if (result.success) {
+      if (response.success) {
         console.log('✅ Login successful, redirecting...');
         navigate('/posts');
       }

@@ -1,8 +1,29 @@
 import { Server } from "socket.io";
+import dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
+
+// Get client URL and port from environment variables
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const PORT = process.env.PORT || 4001;
+
+// Allow multiple client origins
+const allowedOrigins = [
+  CLIENT_URL,
+  "https://property-state-1.onrender.com",
+  "http://localhost:5173",
+];
+
+console.log(
+  `📝 Socket server will accept connections from: ${allowedOrigins.join(", ")}`
+);
 
 const io = new Server({
   cors: {
-    origin: "http://localhost:5173", // client URL
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
@@ -132,9 +153,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// Use port 4001 for socket server
-io.listen(4001);
-console.log("🔌 Socket.io server running on port 4001");
+// Use environment variable for port
+io.listen(PORT);
+console.log(`🔌 Socket.io server running on port ${PORT}`);
 
 // Add function to deliver pending messages when a user connects
 const deliverPendingMessages = (userId, socketId) => {

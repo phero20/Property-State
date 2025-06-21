@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
-import { SOCKET_URL } from '../utils/constants';
+import io from 'socket.io-client';
+
+// Use the production URL directly
+const SOCKET_URL = 'https://property-state-socket.onrender.com';
 
 const SocketContext = createContext();
 
@@ -15,8 +17,7 @@ export const SocketProvider = ({ children }) => {
       transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5,
-      secure: SOCKET_URL.startsWith('https'), // Enable secure flag for HTTPS
+      secure: true, // Enable secure connection
     });
 
     socketInstance.on('connect', () => {

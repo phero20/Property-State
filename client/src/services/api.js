@@ -1,6 +1,7 @@
 import axios from 'axios';
-import { API_BASE_URL } from '../utils/constants';
-import { mockPosts } from './mockData';
+
+// Make sure we're using environment variables or hardcode the production URL
+const API_BASE_URL = 'https://property-state.onrender.com/api';
 
 console.log('🌐 Using API URL:', API_BASE_URL);
 

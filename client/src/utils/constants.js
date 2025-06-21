@@ -1,10 +1,10 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4001';
+export const API_BASE_URL = 'https://property-state.onrender.com/api';
+export const SOCKET_URL = 'https://property-state-socket.onrender.com';
 
 // Log the URLs being used (helpful for debugging)
-console.log('📡 API URL:', API_BASE_URL);
-console.log('🔌 Socket URL:', SOCKET_URL);
+console.log('🌐 API URL:', API_BASE_URL);
+console.log('🔌 SOCKET URL:', SOCKET_URL);
 
 // Post Types
 export const POST_TYPES = {
