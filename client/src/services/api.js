@@ -1,9 +1,10 @@
 import axios from 'axios';
 import mockChatAPI from './mockChatAPI';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-production-api.com/api'
-  : 'http://localhost:4000/api';
+// Updated to use environment variables correctly
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
+console.log('🌐 Using API URL:', API_BASE_URL);
 
 // Create axios instance with default config
 const api = axios.create({
@@ -23,12 +24,12 @@ api.interceptors.request.use(
       try {
         const user = JSON.parse(userData);
         
-        // Add authentication headers without logging
+        // Add authentication headers
         if (user.token) {
           config.headers['Authorization'] = `Bearer ${user.token}`;
         }
       } catch (error) {
-        // Silent error handling
+        console.error('Error parsing user data:', error);
       }
     }
     
@@ -39,20 +40,117 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor for error handling
+// Replace the existing response interceptor with this enhanced version
 api.interceptors.response.use(
   (response) => {
     console.log('✅ API Response:', response.status, response.statusText);
     return response;
   },
   (error) => {
-    console.error('❌ Response Error:', error.response?.status, error.message);
+    console.error('❌ Response Error:', error.message);
     
-    // Handle different error types
-    if (error.response?.status === 401) {
-      console.error('🔒 Unauthorized - API requires authentication');
-    } else if (error.response?.status === 413) {
-      console.error('📦 Payload too large');
+    // Handle network errors gracefully
+    if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
+      console.warn('⚠️ Network error detected. API server may be offline or blocked.');
+      
+      // Check if this is a deployment with production API URL
+      const isProduction = API_BASE_URL.includes('render.com') || 
+                           import.meta.env.PROD;
+      
+      // For specific endpoints, return mock data
+      const url = error.config?.url || '';
+      
+      // Handle login errors
+      if (url.includes('/auth/login')) {
+        console.log('🔄 Login failed - API unavailable.');
+        
+        // In development, provide a dev token for testing
+        if (!isProduction) {
+          console.log('🧪 Development mode: Creating mock user response');
+          
+          let username = 'devuser';
+          try {
+            if (error.config?.data) {
+              const data = JSON.parse(error.config.data);
+              username = data.username || data.email || 'devuser';
+            }
+          } catch (e) {
+            console.error('Error parsing request data:', e);
+          }
+          
+          const mockUser = {
+            id: 'dev_user_123',
+            username: username,
+            token: 'dev_token_' + Date.now(),
+            email: `${username}@example.com`
+          };
+          
+          // Return a "successful" mock response
+          return Promise.resolve({ 
+            data: mockUser
+          });
+        }
+      }
+      
+      // Handle posts fetch errors
+      else if (url.includes('/posts') && !url.includes('/posts/')) {
+        console.log('🔄 Posts fetch failed - API unavailable. Returning mock data');
+        
+        if (!isProduction) {
+          return Promise.resolve({ 
+            data: mockPosts || [] 
+          });
+        }
+      }
+      
+      // Handle profile/user fetch errors
+      else if (url.includes('/user/')) {
+        console.log('🔄 User data fetch failed - API unavailable');
+        
+        // Try to get data from localStorage as fallback
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          
+          if (url.includes('/profile')) {
+            return Promise.resolve({ data: user });
+          }
+        }
+      }
+      
+      // Add other specific endpoint handlers as needed
+    }
+    
+    // Handle specific error status codes
+    if (error.response) {
+      const { status } = error.response;
+      
+      if (status === 401) {
+        console.error('🔒 Unauthorized - API requires authentication');
+        // Handle auth errors (e.g. redirect to login)
+        
+        // If in a sensitive area, consider redirecting to login
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('/profile') || 
+            currentPath.includes('/add-post') || 
+            currentPath.includes('/messages')) {
+          console.warn('🔄 Authentication required. Redirecting to login...');
+          // Consider using a global store or event to handle redirects
+          // window.location.href = `/login?redirect=${currentPath}`;
+        }
+      } 
+      else if (status === 403) {
+        console.error('🚫 Forbidden - You don\'t have permission to access this resource');
+      }
+      else if (status === 404) {
+        console.error('🔍 Not found - The requested resource does not exist');
+      }
+      else if (status === 413) {
+        console.error('📦 Payload too large - Try reducing the size of uploads');
+      }
+      else if (status >= 500) {
+        console.error('🔧 Server error - Something went wrong on the server');
+      }
     }
     
     return Promise.reject(error);

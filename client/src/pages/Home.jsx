@@ -13,10 +13,13 @@ const Home = () => {
 
   const fetchFeaturedPosts = async () => {
     try {
-      const response = await postAPI.getPosts({ limit: 6 });
+      // Fix: Use getAllPosts instead of getPosts
+      const response = await postAPI.getAllPosts({ limit: 6 });
       setFeaturedPosts(response.data.slice(0, 6));
     } catch (error) {
       console.error('Error fetching featured posts:', error);
+      // Set some mock data if API fails
+      setFeaturedPosts([]);
     } finally {
       setLoading(false);
     }
