@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const API_URL = 'http://property-state.onrender.com';
+const API_URL = 'http://localhost:4000';
 const JWT_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Replace with your valid JWT token
 
 const testChatRoutes = async () => {

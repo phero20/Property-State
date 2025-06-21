@@ -1,45 +1,53 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAuth } from './AuthContext';
-import socketService from '../services/socket';
+import { io } from 'socket.io-client';
+import { SOCKET_URL } from '../utils/constants';
 
 const SocketContext = createContext();
 
-export const useSocket = () => {
-  const context = useContext(SocketContext);
-  if (!context) {
-    throw new Error('useSocket must be used within a SocketProvider');
-  }
-  return context;
-};
-
 export const SocketProvider = ({ children }) => {
-  const { user } = useAuth();
   const [socket, setSocket] = useState(null);
-  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      const socketConnection = socketService.connect(user.id);
-      setSocket(socketConnection);
+    console.log('🔌 Connecting to socket server:', SOCKET_URL);
 
-      return () => {
-        socketService.disconnect();
-        setSocket(null);
-      };
-    }
-  }, [user]);
+    const socketInstance = io(SOCKET_URL, {
+      transports: ['websocket'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      secure: SOCKET_URL.startsWith('https'), // Enable secure flag for HTTPS
+    });
 
-  const value = {
-    socket,
-    onlineUsers,
-    sendMessage: socketService.sendMessage.bind(socketService),
-    onMessage: socketService.onMessage.bind(socketService),
-    offMessage: socketService.offMessage.bind(socketService),
-  };
+    socketInstance.on('connect', () => {
+      console.log('✅ Socket connected!');
+      setConnected(true);
+    });
+
+    socketInstance.on('disconnect', (reason) => {
+      console.log(`❌ Socket disconnected: ${reason}`);
+      setConnected(false);
+    });
+
+    socketInstance.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error);
+      setConnected(false);
+    });
+
+    setSocket(socketInstance);
+
+    return () => {
+      if (socketInstance) {
+        socketInstance.disconnect();
+      }
+    };
+  }, []);
 
   return (
-    <SocketContext.Provider value={value}>
+    <SocketContext.Provider value={{ socket, connected }}>
       {children}
     </SocketContext.Provider>
   );
 };
+
+export const useSocket = () => useContext(SocketContext);

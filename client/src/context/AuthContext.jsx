@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
       console.log('📝 Registration attempt...');
       
       // Try API registration first
-      const response = await fetch('http://property-state.onrender.com/api/auth/register', {
+      const response = await fetch('http://localhost:4000/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,7 +122,7 @@ export const AuthProvider = ({ children }) => {
       
       console.log(`🔑 Attempting login with ${loginField}: ${loginValue}`);
       
-      const response = await fetch('http://property-state.onrender.com/api/auth/login', {
+      const response = await fetch('http://localhost:4000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

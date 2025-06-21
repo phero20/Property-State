@@ -80,7 +80,10 @@ const listRoutes = () => {
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: [
+    'https://property-state-1.onrender.com',
+    process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : undefined
+  ].filter(Boolean),
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' })); // Increase limit for image uploads

@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const API_URL = 'http://property-state.onrender.com';
+const API_URL = 'http://localhost:4000';
 
 const testRoutes = async () => {
   try {

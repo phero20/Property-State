@@ -1,85 +1,55 @@
 import { useState, useEffect } from 'react';
 import { postAPI } from '../services/api';
 
-export const usePosts = () => {
-  const [posts, setPosts] = useState({
-    myPosts: [],
-    savedPosts: [],
-    allPosts: []
-  });
-  const [loading, setLoading] = useState(true);
+export const usePosts = (initialFilters = {}) => {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const loadPosts = async () => {
+  const [filters, setFilters] = useState(initialFilters);
+  
+  const loadPosts = async (queryParams = {}) => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      console.log('📥 Loading posts from API...');
+      const mergedParams = { ...filters, ...queryParams };
+      const response = await postAPI.getAllPosts(mergedParams);
       
-      const response = await postAPI.getAllPosts();
-      const allPosts = Array.isArray(response.data) ? response.data : [];
-      
-      console.log('✅ Posts loaded from API:', allPosts.length, 'posts');
-      
-      // Get current user to filter posts
-      const userData = localStorage.getItem('user');
-      const currentUser = userData ? JSON.parse(userData) : null;
-      
-      const myPosts = currentUser 
-        ? allPosts.filter(post => post.userId === currentUser.id || post.ownerInfo?.id === currentUser.id)
-        : [];
-      
-      setPosts({
-        myPosts,
-        savedPosts: [], // TODO: Implement saved posts
-        allPosts
-      });
-      
-      setError(null);
+      // Check if we got an array back
+      const postsData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data.posts || [];
+        
+      setPosts(postsData);
+      return postsData;
     } catch (error) {
       console.error('❌ Error loading posts from API:', error);
-      setError('Failed to load posts from server');
-      setPosts({ myPosts: [], savedPosts: [], allPosts: [] });
+      setError(error.message || 'Failed to load posts');
+      
+      // Fallback to empty array on error
+      setPosts([]);
+      return [];
     } finally {
       setLoading(false);
     }
   };
-
-  const createPost = async (postData) => {
-    try {
-      console.log('📝 Creating new post via API...');
-      const response = await postAPI.createPost(postData);
-      const newPost = response.data;
-      
-      console.log('✅ Post created successfully:', newPost.id);
-      
-      // Update local state
-      setPosts(prev => ({
-        ...prev,
-        myPosts: [newPost, ...prev.myPosts],
-        allPosts: [newPost, ...prev.allPosts]
-      }));
-      
-      // Reload all posts to ensure consistency
-      setTimeout(() => {
-        loadPosts();
-      }, 1000);
-      
-      return { success: true, post: newPost };
-    } catch (error) {
-      console.error('❌ Error creating post:', error);
-      throw error;
-    }
-  };
-
+  
+  // Load posts on mount or when filters change
   useEffect(() => {
     loadPosts();
-  }, []);
-
+  }, [JSON.stringify(filters)]);
+  
+  const updateFilters = (newFilters) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+  
   return {
     posts,
     loading,
     error,
+    filters,
+    updateFilters,
     loadPosts,
-    createPost
+    setPosts
   };
 };
