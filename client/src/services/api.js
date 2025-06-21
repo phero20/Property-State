@@ -1,10 +1,12 @@
 import axios from 'axios';
 import mockChatAPI from './mockChatAPI';
 
-// Updated to use environment variables correctly
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+// Use deployed API URL
+const API_BASE_URL = 'https://property-state.onrender.com/api';
+const SOCKET_URL = 'https://property-state.onrender.com';
 
 console.log('🌐 Using API URL:', API_BASE_URL);
+console.log('🔌 Using Socket URL:', SOCKET_URL);
 
 // Create axios instance with default config
 const api = axios.create({

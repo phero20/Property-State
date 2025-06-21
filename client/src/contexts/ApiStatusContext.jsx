@@ -13,7 +13,7 @@ export const ApiStatusProvider = ({ children }) => {
   const checkApiStatus = async () => {
     try {
       // Use the health check endpoint
-      const response = await axios.head('http://localhost:4000/api/health', {
+      const response = await axios.head('http://property-state.onrender.com/api/health', {
         timeout: 3000,
       });
       
