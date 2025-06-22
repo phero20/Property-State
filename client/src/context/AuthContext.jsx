@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import authService from '../services/authService'; // Adjust the path as needed
 
 const AuthContext = createContext();
 
@@ -48,7 +49,7 @@ export const AuthProvider = ({ children }) => {
       console.log('📝 Registration attempt...');
       
       // Try API registration first
-      const response = await fetch('http://localhost:4000/api/auth/register', {
+      const response = await fetch('http://property-state.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,75 +114,32 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
+      setLoading(true);
       console.log('🔐 Login attempt...');
       
-      // Determine which field to use (email or username)
-      const isEmailLogin = !!credentials.email;
-      const loginField = isEmailLogin ? 'email' : 'username';
-      const loginValue = credentials[loginField];
+      // Use the authService login function
+      const userData = await authService.login(credentials);
+      console.log('✅ Login successful');
       
-      console.log(`🔑 Attempting login with ${loginField}: ${loginValue}`);
+      // Store user data in localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
       
-      const response = await fetch('http://localhost:4000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          [loginField]: loginValue,
-          password: credentials.password
-        }),
-        credentials: 'include' // Important for cookies
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ API Login successful:', result);
-
-        const userData = {
-          ...result,
-          token: result.token || `user_${result.id}`,
-          lastLogin: new Date().toISOString()
-        };
-        
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        return { success: true, user: userData };
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
-      }
+      // Update state
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      return { success: true, user: userData };
     } catch (error) {
       console.error('❌ Login failed:', error);
       
-      // For development - try fallback
+      // For development fallbacks (if needed)
       if (process.env.NODE_ENV === 'development') {
-        try {
-          const devCredentials = credentials.email || credentials.username;
-          // Create a mock user for development
-          const mockUser = {
-            id: `dev_${Date.now()}`,
-            username: devCredentials.split('@')[0] || 'devuser',
-            email: credentials.email || `${credentials.username}@example.com`,
-            token: `dev_token_${Date.now()}`,
-            lastLogin: new Date().toISOString()
-          };
-          
-          console.log('🔧 Development mode: Creating mock user session:', mockUser.username);
-          
-          setUser(mockUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('user', JSON.stringify(mockUser));
-          
-          return { success: true, user: mockUser };
-        } catch (e) {
-          console.error('Failed to create development user');
-        }
+        // Your development fallback code...
       }
       
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
