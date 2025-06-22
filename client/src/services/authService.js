@@ -51,7 +51,6 @@ export const login = async (credentials) => {
   }
 };
 
-// Other auth functions...
 export const register = async (userData) => {
   try {
     const response = await axios.post(`${API_URL}/auth/register`, userData);
@@ -73,11 +72,9 @@ export const logout = async () => {
   }
 };
 
+// Export default as an object with the same functions
 export default {
   login,
   register,
   logout
 };
-
-// In any file that imports from authService
-import { login, register, logout } from '../services/authService.js';
