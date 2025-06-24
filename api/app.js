@@ -8,6 +8,7 @@ import userRoute from "./routes/user.route.js";
 import chatRoute from "./routes/chat.route.js";
 import messageRoute from "./routes/message.route.js";
 import debugRoute from "./routes/debug.route.js";
+import mongoose from "mongoose";
 
 const app = express();
 
@@ -88,12 +89,21 @@ app.head('/api', (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 
+// Increase server-side timeout
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📍 API URL: http://localhost:${PORT}/api`);
-  console.log(`🔗 CORS enabled for: http://localhost:5173`);
-  console.log(`🌟 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`💬 Chat endpoints: /api/chats, /api/messages`);
+  
+  // Set server timeout to 2 minutes (120000 ms)
+  server.timeout = 120000;
+});
+
+// Add MongoDB connection timeout handling
+mongoose.connect(process.env.DATABASE_URL, {
+  serverSelectionTimeoutMS: 60000, // 1 minute
+  socketTimeoutMS: 60000,
+  connectTimeoutMS: 60000
+}).catch(err => {
+  console.error('❌ MongoDB connection error:', err);
 });
 
 export default app;

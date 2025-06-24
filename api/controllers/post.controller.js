@@ -36,127 +36,39 @@ export const getPosts = async (req, res) => {
       if (query.maxPrice) where.price.lte = parseInt(query.maxPrice);
     }
 
-    // Try with a more selective query to avoid the type conversion errors
-    try {
-      const posts = await prisma.post.findMany({
-        where,
-        select: {
-          id: true,
-          title: true,
-          price: true,
-          images: true,
-          address: true,
-          city: true,
-          bedroom: true,
-          bathroom: true,
-          type: true,
-          property: true,
-          createdAt: true,
-          updatedAt: true,
-          userId: true,
-          // Skip problematic latitude/longitude fields initially
-          user: {
-            select: {
-              id: true,
-              username: true,
-              email: true,
-              avatar: true,
-              createdAt: true
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      });
-
-      console.log(`✅ Fetched ${posts.length} posts from database`);
-
-      // Transform posts for the frontend
-      const transformedPosts = posts.map(post => {
-        return {
-          ...post,
-          // Add nulls for fields we excluded in the select
-          latitude: null,
-          longitude: null,
-          
-          ownerInfo: post.user ? {
-            id: post.user.id,
-            username: post.user.username,
-            email: post.user.email,
-            fullName: post.user.username,
-            avatar: post.user.avatar,
-            verified: false,
-            showContactInfo: true,
-            memberSince: post.user.createdAt,
-            location: `${post.city || 'Unknown City'}`,
-            userType: 'standard'
-          } : {
-            id: 'unknown',
-            username: 'Unknown User',
-            email: '',
-            fullName: 'Unknown',
-            avatar: '',
-            verified: false,
-            showContactInfo: false,
-            memberSince: new Date().toISOString(),
-            location: `${post.city || 'Unknown City'}`,
-            userType: 'standard'
-          }
-        };
-      });
-
-      console.log(`✅ Returning ${transformedPosts.length} posts from DATABASE`);
-      res.status(200).json(transformedPosts);
-    } catch (err) {
-      // If that fails, fallback to basic query without relationships
-      console.error('⚠️ Error with full posts query, trying simpler query:', err.message);
-      const basicPosts = await prisma.post.findMany({
-        select: {
-          id: true,
-          title: true,
-          price: true,
-          images: true,
-          address: true,
-          city: true,
-          bedroom: true,
-          bathroom: true,
-          type: true,
-          property: true,
-          createdAt: true,
-          updatedAt: true,
-          userId: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      });
-      
-      // Format the basic posts with empty owner info
-      const simplePosts = basicPosts.map(post => ({
-        ...post,
-        latitude: null,
-        longitude: null,
-        ownerInfo: {
-          id: 'unknown',
-          username: 'Unknown User',
-          fullName: 'Unknown',
-          email: '',
-          avatar: '',
-          verified: false,
-          showContactInfo: false,
-          memberSince: new Date().toISOString(),
-          location: post.city || 'Unknown',
-          userType: 'standard'
-        }
-      }));
-      
-      console.log(`✅ Returning ${simplePosts.length} basic posts as fallback`);
-      res.status(200).json(simplePosts);
-    }
+    // Add pagination to avoid large result sets
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 20;
+    const skip = (page - 1) * limit;
+    
+    // First try to get only essential fields for better performance
+    const posts = await prisma.post.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        price: true,
+        images: true,
+        address: true,
+        city: true,
+        bedroom: true,
+        bathroom: true,
+        type: true,
+        property: true,
+        createdAt: true,
+        userId: true
+      }
+    });
+    
+    // Format response and send
+    res.status(200).json(posts);
+    
   } catch (err) {
     console.error('❌ Database error in getPosts:', err);
-    // Return empty array instead of 500 error
+    // Return empty array instead of 500 error for better UX
     res.status(200).json([]);
   }
 };

@@ -199,3 +199,16 @@ startServer();
 
 // After registering all routes, call this function
 listRoutes();
+
+// Log database connection events
+mongoose.connection.on('connected', () => {
+  console.log('✅ MongoDB connection established successfully');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('❗ MongoDB connection disconnected');
+});

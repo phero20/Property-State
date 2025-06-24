@@ -13,13 +13,21 @@ const Home = () => {
 
   const fetchFeaturedPosts = async () => {
     try {
-      // Fix: Use getAllPosts instead of getPosts
-      const response = await postAPI.getAllPosts({ limit: 6 });
+      // Add timeout handling 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
+      
+      const response = await postAPI.getAllPosts({ 
+        limit: 6,
+        signal: controller.signal 
+      });
+      
+      clearTimeout(timeoutId);
       setFeaturedPosts(response.data.slice(0, 6));
     } catch (error) {
       console.error('Error fetching featured posts:', error);
-      // Set some mock data if API fails
-      setFeaturedPosts([]);
+      // Set mock data if API fails
+      setFeaturedPosts(mockPosts.slice(0, 6));
     } finally {
       setLoading(false);
     }

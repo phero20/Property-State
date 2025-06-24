@@ -4,13 +4,13 @@ import { mockPosts } from './mockData';
 
 console.log('🌐 Using API URL:', API_URL);
 
-// Create axios instance with default config
+// Create axios instance with increased timeout
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds timeout
+  timeout: 60000, // Increase to 60 seconds
 });
 
 // Add request interceptor to include auth token
@@ -38,24 +38,38 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor for error handling
+// Add retry logic to response interceptor
 api.interceptors.response.use(
   (response) => {
     return response;
   },
-  (error) => {
-    console.error('❌ Response Error:', error.message);
-    
-    // Handle network errors gracefully
-    if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
-      console.warn('⚠️ Network error detected. API server may be offline or blocked.');
+  async (error) => {
+    // Only retry GET requests that time out
+    if (error.config && 
+        !error.config.__isRetryRequest && 
+        error.code === 'ECONNABORTED' && 
+        error.message.includes('timeout')) {
       
-      // For specific endpoints, return mock data
+      console.log('🔄 Request timed out, retrying once...');
+      
+      // Set retry flag
+      error.config.__isRetryRequest = true;
+      error.config.timeout = 90000; // Longer timeout for retry
+      
+      // Return new promise with the retry
+      return api(error.config);
+    }
+    
+    // For timeout errors, return mock data
+    if (error.code === 'ECONNABORTED') {
       const url = error.config?.url || '';
       
       if (url.includes('/posts') && !url.includes('/posts/')) {
-        console.log('🔄 Posts fetch failed - API unavailable. Returning mock data');
-        return Promise.resolve({ data: mockPosts });
+        console.log('🔄 Posts fetch timed out - returning mock data');
+        return Promise.resolve({ 
+          data: mockPosts,
+          isMock: true
+        });
       }
     }
     
