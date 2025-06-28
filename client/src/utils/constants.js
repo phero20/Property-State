@@ -1,5 +1,6 @@
 // API Configuration
-export const API_URL = import.meta.env.VITE_API_URL || 'https://property-state.onrender.com/api';
+export const API_URL ='http://localhost:4000/api'
+
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://property-state-socket.onrender.com';
 
 // Log the URLs being used (helpful for debugging)

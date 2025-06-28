@@ -11,7 +11,7 @@ const SavedPosts = () => {
 
   useEffect(() => {
     const fetchSavedPosts = async () => {
-      if (!user?.id) {
+      if (!user?._id) {
         setLoading(false);
         return;
       }
@@ -27,37 +27,7 @@ const SavedPosts = () => {
           setSavedPosts(response.data || []);
         } catch (apiError) {
           console.error('Error fetching saved posts from API:', apiError);
-          
-          // Generate mock data for development
-          if (process.env.NODE_ENV === 'development') {
-            console.log('🔧 Using mock saved posts data');
-            setSavedPosts([
-              {
-                id: 'mock-saved-1',
-                title: 'Modern Apartment',
-                price: 1800,
-                city: 'Seattle',
-                bedroom: 2,
-                bathroom: 1,
-                images: ['https://via.placeholder.com/400x300?text=Modern+Apartment'],
-                type: 'rent',
-                createdAt: new Date().toISOString()
-              },
-              {
-                id: 'mock-saved-2',
-                title: 'Beach House',
-                price: 750000,
-                city: 'Miami',
-                bedroom: 4,
-                bathroom: 3,
-                images: ['https://via.placeholder.com/400x300?text=Beach+House'],
-                type: 'buy',
-                createdAt: new Date().toISOString()
-              }
-            ]);
-          } else {
-            throw apiError;
-          }
+          setError('Failed to load saved posts. Please try again later.');
         }
       } catch (error) {
         console.error('Error in saved posts page:', error);
@@ -68,7 +38,7 @@ const SavedPosts = () => {
     };
 
     fetchSavedPosts();
-  }, [user?.id]);
+  }, [user?._id]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -95,7 +65,7 @@ const SavedPosts = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {savedPosts.map(post => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post._id} post={{...post, id: post._id}} />
           ))}
         </div>
       )}

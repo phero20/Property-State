@@ -1,11 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const PropertyCard = ({ post }) => {
+const PropertyCard = ({ post, isSaved }) => {
   const navigate = useNavigate();
 
+  // Use post._id for navigation and logic
   const handleClick = () => {
-    navigate(`/posts/${post.id}`);
+    // Pass isSaved state if provided (for saved posts tab)
+    navigate(`/posts/${post._id}`, { state: { isSaved: !!isSaved } });
   };
 
   const formatPrice = (price) => {

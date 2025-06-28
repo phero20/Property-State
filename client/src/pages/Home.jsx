@@ -26,8 +26,6 @@ const Home = () => {
       setFeaturedPosts(response.data.slice(0, 6));
     } catch (error) {
       console.error('Error fetching featured posts:', error);
-      // Set mock data if API fails
-      setFeaturedPosts(mockPosts.slice(0, 6));
     } finally {
       setLoading(false);
     }
@@ -81,8 +79,8 @@ const Home = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredPosts.map((post) => (
-              <PropertyCard key={post.id} post={post} />
+            {featuredPosts.map(post => (
+              <PropertyCard key={post._id} post={{...post, id: post._id}} />
             ))}
           </div>
         )}

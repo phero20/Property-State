@@ -13,6 +13,7 @@ import CreatePost from './pages/CreatePost';
 import Profile from './pages/profile'; // Changed to lowercase
 import Chat from './pages/Chat';
 import Test from './pages/test'; // Changed to lowercase
+import EditPost from './pages/EditPost'; // Changed to lowercase
 import AddPost from './pages/AddPost';
 import socketService from './services/socket';
 import './index.css';
@@ -93,6 +94,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <AddPost />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/edit-post/:id"
+                element={
+                  <ProtectedRoute>
+                    <EditPost />
                   </ProtectedRoute>
                 }
               />

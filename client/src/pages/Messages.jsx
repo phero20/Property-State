@@ -110,32 +110,6 @@ const Messages = () => {
       console.error('❌ Error fetching chats:', error);
       setError('Failed to load your messages');
       setLoading(false);
-      
-      // For development, add mock chats
-      if (process.env.NODE_ENV === 'development') {
-        setChats([
-          { 
-            id: '1', 
-            otherUser: { 
-              id: 'user1', 
-              username: 'johndoe', 
-              avatar: 'https://placehold.co/100x100?text=JD' 
-            },
-            lastMessage: 'Is the apartment still available?',
-            updatedAt: new Date().toISOString()
-          },
-          { 
-            id: '2', 
-            otherUser: { 
-              id: 'user2', 
-              username: 'janesmith', 
-              avatar: 'https://placehold.co/100x100?text=JS' 
-            },
-            lastMessage: 'I would like to schedule a viewing.',
-            updatedAt: new Date(Date.now() - 86400000).toISOString()
-          }
-        ]);
-      }
     }
   };
   
@@ -166,33 +140,6 @@ const Messages = () => {
         }
       } catch (error) {
         console.error('❌ Error fetching messages:', error);
-        
-        // For development, add mock messages
-        if (process.env.NODE_ENV === 'development') {
-          setMessages([
-            {
-              id: '1',
-              chatId: selectedChat.id,
-              content: 'Hi, is this property still available?',
-              senderId: selectedChat.otherUser.id,
-              createdAt: new Date(Date.now() - 3600000).toISOString()
-            },
-            {
-              id: '2',
-              chatId: selectedChat.id,
-              content: 'Yes, it is! Would you like to schedule a viewing?',
-              senderId: user.id,
-              createdAt: new Date(Date.now() - 3000000).toISOString()
-            },
-            {
-              id: '3',
-              chatId: selectedChat.id,
-              content: 'That would be great. Is tomorrow afternoon possible?',
-              senderId: selectedChat.otherUser.id,
-              createdAt: new Date(Date.now() - 2400000).toISOString()
-            }
-          ]);
-        }
       }
     };
     

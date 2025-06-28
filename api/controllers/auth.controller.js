@@ -1,137 +1,112 @@
-import * as bcrypt from "bcryptjs";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import prisma from "../lib/prisma.js";
+import User from "../models/User.js";
+import cloudinary from "../lib/cloudinary.js";
 
 export const register = async (req, res) => {
-  const { username, email, password } = req.body;
-
+  const userData = req.body.userData || {};
   try {
-    console.log('📝 Registration attempt:', { username, email });
-
     // Check if user already exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { username: username },
-          { email: email }
-        ]
-      }
-    });
-
+    const existingUser = await User.findOne({ $or: [ { username: userData.username }, { email: userData.email } ] });
     if (existingUser) {
-      return res.status(400).json({ 
-        message: existingUser.username === username ? "Username already exists!" : "Email already exists!" 
+      return res.status(400).json({
+        success: false,
+        message: existingUser.username === userData.username ? "Username already exists!" : "Email already exists!"
       });
     }
+    // Debug: log the password and hash at registration
+    console.log('REGISTER - Password before hashing:', `[${userData.password}]`);
+    // Hash the password using SHA256
+    const hashedPassword = crypto.createHash('sha256').update(userData.password).digest('hex');
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Handle avatar upload to Cloudinary if present and is base64
+    let avatarUrl = undefined;
+    if (userData.avatar && typeof userData.avatar === 'string' && userData.avatar.startsWith('data:image/')) {
+      try {
+        const uploadRes = await cloudinary.uploader.upload(userData.avatar, {
+          folder: 'user-avatars',
+          resource_type: 'image',
+        });
+        avatarUrl = uploadRes.secure_url;
+      } catch (err) {
+        console.error('[REGISTER] Cloudinary avatar upload error:', err);
+      }
+    }
 
     // Create the user
-    const newUser = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPassword,
-      },
+    const newUser = await User.create({
+      ...userData,
+      avatar: avatarUrl !== undefined ? avatarUrl : undefined, // Only store Cloudinary URL if uploaded, else undefined
+      password: hashedPassword
     });
-
-    console.log('✅ User created successfully:', newUser.username);
-
-    res.status(201).json({ 
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: newUser._id, email: newUser.email },
+      process.env.JWT_SECRET_KEY
+    );
+    // Remove password from user object
+    const userObj = newUser.toObject();
+    delete userObj.password;
+    res.status(201).json({
+      success: true,
       message: "User created successfully!",
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        avatar: newUser.avatar,
-        createdAt: newUser.createdAt
-      }
+      user: userObj,
+      token
     });
   } catch (err) {
-    console.error('❌ Registration error:', err);
-    res.status(500).json({ message: "Failed to create user!" });
+    res.status(500).json({ success: false, message: "Failed to create user!" });
   }
 };
 
 export const login = async (req, res) => {
+  // Accept both { userData: { ... } } and direct fields in body
+  const userData = req.body.userData || req.body;
+  const { email, username, password } = userData;
   try {
-    // Check if database is connected
-    try {
-      const dbTest = await prisma.user.count();
-      console.log('✅ Database connection verified:', dbTest, 'users found');
-    } catch (dbError) {
-      console.error('❌ Database connection error:', dbError);
-      return res.status(500).json({ message: "Database connection error" });
-    }
-    
-    const { email, username, password } = req.body;
-    
-    // Check if we have either email or username
     if (!email && !username) {
-      return res.status(400).json({ message: "Email or username is required" });
+      return res.status(400).json({ success: false, message: "Email or username is required" });
     }
-
-    console.log('🔐 Login attempt with:', email ? `email: ${email}` : `username: ${username}`);
-    
-    // Find user by email or username
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          email ? { email: email } : {},
-          username ? { username: username } : {}
-        ]
-      }
-    });
-
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Password is required" });
+    }
+    let user;
+    if (email && username) {
+      user = await User.findOne({ $or: [ { email }, { username } ] });
+    } else if (email) {
+      user = await User.findOne({ email });
+    } else if (username) {
+      user = await User.findOne({ username });
+    }
+    console.log('loginuser', user);
     if (!user) {
-      console.log('❌ User not found');
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      console.log('❌ Invalid password');
-      return res.status(401).json({ message: "Invalid credentials" });
+    // Debug: log the password and hash at login
+    console.log('LOGIN - Password before hashing:', `[${password}]`);
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    console.log('LOGIN - hashed password from request:', hashedPassword);
+    console.log('LOGIN - hashed password from DB:', user.password);
+    if (hashedPassword !== user.password) {
+      return res.status(401).json({ success: false, message: "wrong password" });
     }
-
-    // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET_KEY,
-      { expiresIn: "7d" }
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET_KEY
     );
-
-    console.log('✅ Login successful for:', user.email);
-    console.log('🔑 Generated JWT token for user ID:', user.id);
-
-    // Set token as cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
-    // Return user data and token
+    // Remove password from user object
+    const userObj = user.toObject();
+    delete userObj.password;
     res.status(200).json({
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      avatar: user.avatar,
-      token: token,
-      createdAt: user.createdAt,
-      fullName: user.fullName || user.username
+      success: true,
+      message: "Login successful",
+      user: userObj,
+      token
     });
   } catch (err) {
-    console.error('❌ Login error:', err);
-    res.status(500).json({ message: "Server error during login" });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 export const logout = (req, res) => {
-  console.log('👋 User logout');
-  res
-    .clearCookie("token")
-    .status(200)
-    .json({ message: "Logout Successful!" });
+  res.status(200).json({ message: "Logout Successful!" });
 };

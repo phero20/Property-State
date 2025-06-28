@@ -4,6 +4,8 @@ import { postAPI } from '../services/api';
 import { PROPERTY_TYPES, POST_TYPES } from '../utils/constants';
 
 const CreatePost = () => {
+  console.log("COMPONENT RENDERED"); // Debug: confirm component is rendered
+
   const [formData, setFormData] = useState({
     title: '',
     price: '',
@@ -63,29 +65,41 @@ const CreatePost = () => {
     setLoading(true);
     setError('');
 
+    // Simple debug log
+    console.log('handleSubmit called');
+
+    // Prepare postData
+    const postData = {
+      title: formData.title,
+      price: Number(formData.price),
+      address: formData.address,
+      city: formData.city,
+      bedroom: Number(formData.bedroom),
+      bathroom: Number(formData.bathroom),
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+      type: formData.type,
+      property: formData.property,
+      images: Array.isArray(formData.images) ? formData.images : [],
+    };
+
+    // Prepare postDetail
+    const postDetail = {
+      desc: postDetail.desc,
+      utilities: postDetail.utilities,
+      pet: postDetail.pet,
+      income: postDetail.income,
+      size: postDetail.size ? Number(postDetail.size) : null,
+      school: postDetail.school ? Number(postDetail.school) : null,
+      bus: postDetail.bus ? Number(postDetail.bus) : null,
+      restaurant: postDetail.restaurant ? Number(postDetail.restaurant) : null,
+    };
+
+    // Log the data to verify
+    console.log({ postData, postDetail });
+
     try {
-      // Convert string numbers to integers
-      const postData = {
-        ...formData,
-        price: parseInt(formData.price),
-        bedroom: parseInt(formData.bedroom),
-        bathroom: parseInt(formData.bathroom),
-      };
-
-      // Convert detail numbers to integers
-      const detailData = {
-        ...postDetail,
-        size: postDetail.size ? parseInt(postDetail.size) : null,
-        school: postDetail.school ? parseInt(postDetail.school) : null,
-        bus: postDetail.bus ? parseInt(postDetail.bus) : null,
-        restaurant: postDetail.restaurant ? parseInt(postDetail.restaurant) : null,
-      };
-
-      await postAPI.createPost({
-        postData,
-        postDetail: detailData
-      });
-
+      await postAPI.createPost({ postData, postDetail });
       navigate('/posts');
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to create post');
@@ -411,6 +425,7 @@ const CreatePost = () => {
             type="submit"
             disabled={loading}
             className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+            onClick={() => console.log("Submit button clicked")}
           >
             {loading ? 'Creating...' : 'Create Listing'}
           </button>

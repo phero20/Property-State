@@ -7,12 +7,6 @@
 export const formatUserId = (userId, forceInteger = true) => {
   if (!userId) return null;
   
-  // Handle mock IDs for development
-  if (typeof userId === 'string' && userId.startsWith('mock_')) {
-    // Return a valid database ID for development
-    return forceInteger ? 1 : '1';
-  }
-  
   // Normal ID handling
   if (forceInteger) {
     const numId = parseInt(userId);

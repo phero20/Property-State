@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { login } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
+
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     emailOrUsername: '',
     password: '',
@@ -137,27 +139,6 @@ const Login = () => {
             </div>
           </form>
 
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-2 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  const isEmail = formData.emailOrUsername.includes('@');
-                  console.log('📊 Debug Login Request:');
-                  console.log('Input value:', formData.emailOrUsername);
-                  console.log('Is Email:', isEmail);
-                  console.log('Will send as:', isEmail ? 'email' : 'username');
-                  console.log('Full payload:', {
-                    [isEmail ? 'email' : 'username']: formData.emailOrUsername,
-                    password: formData.password
-                  });
-                }}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 font-normal py-1 px-2 rounded"
-              >
-                Debug Login
-              </button>
-            </div>
-          )}
 
           <div className="mt-6">
             <p className="text-center text-sm text-gray-600">

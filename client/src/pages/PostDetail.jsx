@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { postAPI, chatAPI } from '../services/api';
+import { postAPI, chatAPI,userAPI } from '../services/api';
 import socketService from '../services/socket';
 import { toast } from 'react-toastify';
 
@@ -10,6 +10,9 @@ const PostDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
+  // Use location.state?.isSaved as initial value if present
+  const [isSaved, setIsSaved] = useState(location.state?.isSaved || false);
+  const hasInitialIsSaved = useRef(!!location.state?.isSaved);
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,6 +24,10 @@ const PostDetail = () => {
     loadPost();
   }, [id]);
 
+  useEffect(() => {
+    checkIfSaved();
+  }, [id, isAuthenticated]);
+
   const loadPost = async () => {
     try {
       setLoading(true);
@@ -29,14 +36,14 @@ const PostDetail = () => {
       // Try to get from API first
       try {
         const response = await postAPI.getPost(id);
-        setPost(response.data);
-        console.log('✅ Post loaded from API:', response.data);
+        setPost(response);
+        console.log('✅ Post loaded from API:', response);
       } catch (apiError) {
         console.log('🔄 API unavailable, checking localStorage...');
         
         // Fallback to localStorage
         const allPosts = JSON.parse(localStorage.getItem('allPosts') || '[]');
-        const foundPost = allPosts.find(p => p.id === id);
+        const foundPost = allPosts.find(p => p._id === id);
         
         if (foundPost) {
           setPost(foundPost);
@@ -52,6 +59,25 @@ const PostDetail = () => {
       setError('Post not found');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkIfSaved = async () => {
+    if (!isAuthenticated) {
+      setIsSaved(false);
+      return;
+    }
+    try {
+      const savedPostsRes = await userAPI.getSavedPosts();
+      const savedPosts = savedPostsRes.data || [];
+      // Only update isSaved if not set from router state
+      if (!hasInitialIsSaved.current) {
+        setIsSaved(savedPosts.some((p) => String(p._id) === String(id)));
+      }
+    } catch (err) {
+      if (!hasInitialIsSaved.current) {
+        setIsSaved(false);
+      }
     }
   };
 
@@ -77,7 +103,7 @@ const PostDetail = () => {
         throw new Error('Cannot contact owner: post has no owner information');
       }
       
-      if (ownerId === user.id) {
+      if (ownerId === user._id) {
         toast.info("This is your own post!");
         return;
       }
@@ -137,6 +163,32 @@ const PostDetail = () => {
       year: 'numeric'
     });
   };
+    
+  // Save/Unsave Post Handler
+  const handleSaveUnsave = async () => {
+    if (!isAuthenticated) {
+      toast.info('Please login to save properties.');
+      navigate('/login');
+      return;
+    }
+    // Optimistic UI update
+    const prevSaved = isSaved;
+    setIsSaved(!isSaved);
+    try {
+      if (prevSaved) {
+        await userAPI.unsavePost(post._id);
+        toast.success('Property unsaved!');
+      } else {
+        await userAPI.savePost(post._id);
+        toast.success('Property saved!');
+      }
+      // No need to re-check, we already updated the state
+    } catch (err) {
+      // Rollback UI state
+      setIsSaved(prevSaved);
+      toast.error('Failed to update saved properties.');
+    }
+  };
 
   if (loading) {
     return (
@@ -178,7 +230,7 @@ const PostDetail = () => {
       setCurrentImageIndex((prev) => (prev - 1 + post.images.length) % post.images.length);
     }
   };
-
+   console.log('post detail post', post)
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Back Button */}
@@ -356,7 +408,6 @@ const PostDetail = () => {
           {post.ownerInfo && (
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h3 className="text-xl font-semibold mb-4">Property Owner</h3>
-              
               <div className="flex items-center space-x-4 mb-4">
                 <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-semibold">
                   {post.ownerInfo.avatar ? (
@@ -369,7 +420,6 @@ const PostDetail = () => {
                     (post.ownerInfo.fullName || post.ownerInfo.username || 'U').charAt(0).toUpperCase()
                   )}
                 </div>
-                
                 <div>
                   <div className="flex items-center space-x-2">
                     <h4 className="font-semibold text-gray-900">
@@ -385,7 +435,6 @@ const PostDetail = () => {
                   )}
                 </div>
               </div>
-
               <div className="text-sm text-gray-600 mb-4">
                 <p>Member since {formatDate(post.ownerInfo.memberSince)}</p>
                 {post.ownerInfo.userType && (
@@ -393,17 +442,56 @@ const PostDetail = () => {
                 )}
               </div>
 
+              {/* If current user is the owner, show Edit and Delete buttons */}
+              {isAuthenticated && user && post.ownerInfo.id === user._id && (
+                <div className="flex flex-col space-y-2 mb-4">
+                  <button
+                    onClick={() => navigate(`/edit-post/${post._id}`)}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    ✏️ Edit Post
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete this post?')) {
+                        try {
+                          await postAPI.deletePost(post._id);
+                          toast.success('Post deleted!');
+                          navigate('/posts');
+                        } catch (err) {
+                          toast.error('Failed to delete post.');
+                        }
+                      }
+                    }}
+                    className="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    🗑️ Delete Post
+                  </button>
+                </div>
+              )}
+
               {/* Contact Actions */}
               <div className="space-y-3">
                 <button
                   onClick={handleContactOwner}
-                  disabled={!isAuthenticated || post.ownerInfo.id === user?.id}
+                  disabled={!isAuthenticated || post.ownerInfo.id === user?._id}
                   className="w-full bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
                   {!isAuthenticated ? 'Login to Contact' : 
-                   post.ownerInfo.id === user?.id ? 'Your Property' : 
+                   post.ownerInfo.id === user?._id ? 'Your Property' : 
                    '💬 Send Message'}
                 </button>
+
+                {/* Save/Unsave Post Button */}
+                {isAuthenticated && post.ownerInfo.id !== user?._id && (
+                  <button
+                    onClick={handleSaveUnsave}
+                    disabled={!isAuthenticated}
+                    className={`w-full ${isSaved ? 'bg-gray-400 hover:bg-gray-500' : 'bg-yellow-400 hover:bg-yellow-500'} text-white px-4 py-3 rounded-md disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors`}
+                  >
+                    {isSaved ? '⭐ Unsave Property' : '⭐ Save Property'}
+                  </button>
+                )}
 
                 {post.ownerInfo.showContactInfo && (
                   <button
@@ -415,23 +503,6 @@ const PostDetail = () => {
                   </button>
                 )}
               </div>
-
-              {/* Debug Socket Connection - DEV ONLY */}
-              {process.env.NODE_ENV === 'development' && (
-                <button
-                  onClick={() => {
-                    console.log('📊 Debug Socket Connection:');
-                    console.log('Socket service:', socketService);
-                    console.log('Current socket ID:', socketService.getSocketId());
-                    console.log('Current user ID:', user?.id);
-                    console.log('Property owner ID:', post.ownerInfo?.id);
-                    console.log('Available routes:', ['/chat', '/messages']);
-                  }}
-                  className="mt-2 w-full bg-gray-100 text-xs text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
-                >
-                  Debug Socket Connection
-                </button>
-              )}
 
               {/* Contact Information */}
               {showContactInfo && post.ownerInfo.showContactInfo && (
@@ -465,3 +536,9 @@ const PostDetail = () => {
 };
 
 export default PostDetail;
+
+// When using getPost, always check for post._id and post.ownerInfo (may be null)
+// Example usage:
+// const post = await postAPI.getPost(id);
+// if (!post || !post._id) { /* handle error */ }
+// const owner = post.ownerInfo || {};

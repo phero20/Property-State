@@ -1,177 +1,133 @@
-import prisma from "../lib/prisma.js";
+import { Post, PostDetail } from '../models/Post.js';
+import User from '../models/User.js';
+import SavedPost from '../models/SavedPost.js'; // <-- Add this import
+import cloudinary from '../lib/cloudinary.js';
 
 export const getPosts = async (req, res) => {
   const query = req.query;
-
   try {
-    console.log('📊 Getting posts from DATABASE with filters:', query);
-    
-    // Build where clause for filtering
-    const where = {};
-    
-    if (query.city) {
-      where.city = {
-        contains: query.city,
-        mode: 'insensitive'
-      };
-    }
-    
-    if (query.type) {
-      where.type = query.type;
-    }
-    
-    if (query.property) {
-      where.property = query.property;
-    }
-    
-    if (query.bedroom) {
-      where.bedroom = {
-        gte: parseInt(query.bedroom)
-      };
-    }
-    
+    console.log('get posts running with query:', query);
+    // Build filter object for Mongoose
+    const filter = {};
+    if (query.city) filter.city = { $regex: query.city, $options: 'i' };
+    if (query.type) filter.type = query.type;
+    if (query.property) filter.property = query.property;
+    if (query.bedroom) filter.bedroom = { $gte: parseInt(query.bedroom) };
     if (query.minPrice || query.maxPrice) {
-      where.price = {};
-      if (query.minPrice) where.price.gte = parseInt(query.minPrice);
-      if (query.maxPrice) where.price.lte = parseInt(query.maxPrice);
+      filter.price = {};
+      if (query.minPrice) filter.price.$gte = parseInt(query.minPrice);
+      if (query.maxPrice) filter.price.$lte = parseInt(query.maxPrice);
     }
-
-    // Add pagination to avoid large result sets
+    // Pagination
     const page = parseInt(query.page) || 1;
     const limit = parseInt(query.limit) || 20;
     const skip = (page - 1) * limit;
-    
-    // First try to get only essential fields for better performance
-    const posts = await prisma.post.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        title: true,
-        price: true,
-        images: true,
-        address: true,
-        city: true,
-        bedroom: true,
-        bathroom: true,
-        type: true,
-        property: true,
-        createdAt: true,
-        userId: true
-      }
-    });
-    
-    // Format response and send
+    // Query posts
+    const posts = await Post.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('title price images address city bedroom bathroom type property createdAt userId');
     res.status(200).json(posts);
-    
   } catch (err) {
     console.error('❌ Database error in getPosts:', err);
-    // Return empty array instead of 500 error for better UX
     res.status(200).json([]);
   }
 };
 
 export const addPost = async (req, res) => {
   try {
-    const body = req.body;
-    const tokenUserId = req.userId;
-    
-    console.log('📝 Creating post from request:', body.title);
-    
-    // Validate required fields
-    if (!body.title || !body.price || !body.city) {
-      return res.status(400).json({ message: "Missing required fields" });
+    const { postData, postDetail } = req.body;
+    const tokenUserId = req.user.id;
+    if (!postData || !postData.title || !postData.price || !postData.city) {
+      return res.status(400).json({ message: "Missing required fields in postData" });
     }
-    
-    // Extract user connection - either from body or token
-    let userConnection;
-    if (body.user?.connect?.id) {
-      // If client sent user connection object
-      userConnection = body.user;
-    } else {
-      // If client sent userId or using token
-      userConnection = {
-        connect: { id: tokenUserId }
-      };
-    }
-    
     // Parse numeric fields
-    const numericPrice = parseFloat(body.price);
-    const numericBedroom = body.bedroom ? parseInt(body.bedroom) : 0;
-    const numericBathroom = body.bathroom ? parseFloat(body.bathroom) : 0;
-    
-    // Handle post detail creation
-    let postDetailCreate;
-    if (body.postDetail?.create) {
-      // Client sent properly formatted nested create
-      postDetailCreate = body.postDetail;
-    } else {
-      // Client sent flattened structure - recreate proper structure
-      postDetailCreate = {
-        create: {
-          desc: body.desc || body.description || '',
-          utilities: body.utilities || '',
-          pet: body.pet || '',
-          income: body.income || '',
-          size: body.size ? parseInt(body.size) : null,
-          school: body.school ? parseInt(body.school) : null,
-          bus: body.bus ? parseInt(body.bus) : null,
-          restaurant: body.restaurant ? parseInt(body.restaurant) : null,
-        }
-      };
-    }
-    
-    // Create post with proper structure
-    const newPost = await prisma.post.create({
-      data: {
-        title: body.title,
-        price: numericPrice,
-        images: body.images || [],
-        address: body.address || '',
-        city: body.city,
-        bedroom: numericBedroom,
-        bathroom: numericBathroom,
-        type: body.type || 'rent',
-        property: body.property || 'apartment',
-        user: userConnection,
-        postDetail: postDetailCreate
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            avatar: true,
-            createdAt: true
+    const numericPrice = parseFloat(postData.price);
+    const numericBedroom = postData.bedroom ? parseInt(postData.bedroom) : undefined;
+    const numericBathroom = postData.bathroom ? parseFloat(postData.bathroom) : undefined;
+  console.log('data is',postData)
+    // Upload images to Cloudinary if present
+    let imageUrls = [];
+    if (Array.isArray(postData.images) && postData.images.length > 0) {
+      const uploadPromises = postData.images.map(async (img, idx) => {
+        try {
+          if (!img || typeof img !== 'string') {
+            console.error(`Image at index ${idx} is not a string:`, img);
+            return null;
           }
-        },
-        postDetail: true
+          // Log the first 100 chars for debugging
+          console.log(`Uploading image[${idx}]:`, img.substring(0, 100));
+          // Ensure the string starts with data:image/
+          if (!img.startsWith('data:image/')) {
+            console.error(`Image at index ${idx} does not start with data:image/:`, img.substring(0, 30));
+            return null;
+          }
+          const uploadRes = await cloudinary.uploader.upload(img, {
+            folder: 'property-listings',
+            resource_type: 'image',
+          });
+          console.log(`Cloudinary upload success for image[${idx}]:`, uploadRes.secure_url);
+          return uploadRes.secure_url;
+        } catch (err) {
+          console.error(`Cloudinary upload error for image[${idx}]:`, err);
+          return null;
+        }
+      });
+      imageUrls = (await Promise.all(uploadPromises)).filter(Boolean);
+      if (imageUrls.length === 0) {
+        console.error('No images were successfully uploaded to Cloudinary.');
       }
+    }
+
+    // Create post with Cloudinary image URLs
+    const newPost = await Post.create({
+      title: postData.title,
+      price: numericPrice,
+      images: imageUrls,
+      address: postData.address || '',
+      city: postData.city,
+      bedroom: numericBedroom,
+      bathroom: numericBathroom,
+      latitude: postData.latitude,
+      longitude: postData.longitude,
+      type: postData.type || 'rent',
+      property: postData.property || 'apartment',
+      userId: tokenUserId,
+      tags: postData.tags || [],
     });
-    
-    // Transform response to include ownerInfo
+    // If postDetail is provided, create and link it
+    let newPostDetail = null;
+    if (postDetail) {
+      newPostDetail = await PostDetail.create({
+        ...postDetail,
+        postId: newPost._id
+      });
+      newPost.postDetail = newPostDetail._id;
+      await newPost.save();
+    }
+    // Populate user info
+    const populatedPost = await Post.findById(newPost._id).populate('userId');
+    console.log('Populated user:', populatedPost.userId);
     const responsePost = {
-      ...newPost,
-      ownerInfo: {
-        id: newPost.user.id,
-        username: newPost.user.username,
-        email: newPost.user.email,
-        fullName: newPost.user.username,
-        avatar: newPost.user.avatar,
+      ...populatedPost.toObject(),
+      postDetail: newPostDetail,
+      ownerInfo: populatedPost.userId ? {
+        id: populatedPost.userId.id,
+        username: populatedPost.userId.username,
+        email: populatedPost.userId.email,
+        phone: populatedPost.userId.phone || null,
+        fullName: populatedPost.userId.username,
+        avatar: populatedPost.userId.avatar,
         verified: false,
         showContactInfo: true,
-        memberSince: newPost.user.createdAt,
-        location: `${newPost.city}`,
-        userType: 'standard'
-      }
+        memberSince: populatedPost.userId.createdAt,
+        location: `${populatedPost.city}`,
+        userType: 'standard',
+      } : undefined,
     };
-
-    console.log('✅ Post created successfully in DATABASE:', newPost.id);
+    // console.log("responsePost",responsePost)
     res.status(201).json(responsePost);
-    
   } catch (err) {
     console.error('❌ Database error creating post:', err);
     res.status(500).json({ message: "Failed to create post in database", error: err.message });
@@ -181,150 +137,159 @@ export const addPost = async (req, res) => {
 export const getPost = async (req, res) => {
   const id = req.params.id;
   try {
-    const post = await prisma.post.findUnique({
-      where: { id },
-      include: {
-        postDetail: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            avatar: true,
-            createdAt: true
-          },
-        },
-      },
-    });
-
+    // Validate MongoDB ObjectId
+    console.log('get post callled with id:', id);
+    if (!id || id.length !== 24) {
+      return res.status(400).json({ message: "Invalid post ID" });
+    }
+    // Increment views atomically
+    const post = await Post.findByIdAndUpdate(
+      id,
+      { $inc: { views: 1 } },
+      { new: true }
+    ).populate('userId').populate('postDetail');
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
-
-    // Transform to include ownerInfo
+    // Always ensure _id is present and ownerInfo is null if userId is missing
+    const postObj = post.toObject();
+    if (!postObj._id) postObj._id = post._id;
+    const ownerInfo = post.userId ? {
+      id: post.userId.id,
+      username: post.userId.username,
+      email: post.userId.email,
+      fullName: post.userId.fullName || post.userId.username,
+      avatar: post.userId.avatar,
+      verified: false,
+      phone: post.userId.phone || null,
+      showContactInfo: true,
+      memberSince: post.userId.createdAt,
+      location: [
+        post.address,
+        post.city,
+        post.state ? post.state : null,
+        post.zipCode ? post.zipCode : null,
+        post.country
+      ]
+        .filter(Boolean)
+        .join(', '),
+      userType: 'standard',
+    } : null;
     const transformedPost = {
-      ...post,
-      ownerInfo: {
-        id: post.user.id,
-        username: post.user.username,
-        email: post.user.email,
-        fullName: post.user.username,
-        avatar: post.user.avatar,
-        verified: false,
-        showContactInfo: true,
-        memberSince: post.user.createdAt,
-        location: `${post.city}`,
-        userType: 'standard'
-      }
+      ...postObj,
+      ownerInfo,
+      postDetail: post.postDetail || null,
     };
-
+    console.log(transformedPost)
     res.status(200).json(transformedPost);
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Failed to get post" });
+    console.error('❌ Error in getPost:', err);
+    res.status(500).json({ message: "Failed to get post", error: err.message });
   }
 };
 
 export const updatePost = async (req, res) => {
   const id = req.params.id;
-  const tokenUserId = req.userId;
-  const body = req.body;
-
+  const tokenUserId = req.user.id || req.user.id;
+  const { postData, postDetail } = req.body;
   try {
     // First check if post exists and belongs to this user
-    const existingPost = await prisma.post.findUnique({
-      where: { id },
-      select: { userId: true }
-    });
-    
+    console.log('data from frontend',postData, postDetail)
+    const existingPost = await Post.findById(id);
     if (!existingPost) {
       return res.status(404).json({ message: "Post not found" });
     }
-    
-    if (existingPost.userId !== tokenUserId) {
+    if (existingPost.userId.toString() !== tokenUserId) {
       return res.status(403).json({ message: "Not authorized to update this post" });
     }
-    
-    // Handle post details update if provided
-    if (body.postDetail) {
-      const postDetail = body.postDetail;
-      delete body.postDetail; // Remove from main body to avoid Prisma issues
-      
-      // Update post details separately
-      await prisma.postDetail.upsert({
-        where: { postId: id },
-        update: {
-          desc: postDetail.desc,
-          utilities: postDetail.utilities,
-          pet: postDetail.pet,
-          income: postDetail.income,
-          size: postDetail.size ? parseInt(postDetail.size) : null,
-          school: postDetail.school ? parseInt(postDetail.school) : null,
-          bus: postDetail.bus ? parseInt(postDetail.bus) : null,
-          restaurant: postDetail.restaurant ? parseInt(postDetail.restaurant) : null,
-        },
-        create: {
-          postId: id,
-          desc: postDetail.desc || '',
-          utilities: postDetail.utilities || '',
-          pet: postDetail.pet || '',
-          income: postDetail.income || '',
-          size: postDetail.size ? parseInt(postDetail.size) : null,
-          school: postDetail.school ? parseInt(postDetail.school) : null,
-          bus: postDetail.bus ? parseInt(postDetail.bus) : null,
-          restaurant: postDetail.restaurant ? parseInt(postDetail.restaurant) : null,
-        }
-      });
-    }
-
-    // Update main post
-    const updatedPost = await prisma.post.update({
-      where: { id },
-      data: {
-        title: body.title,
-        price: body.price ? parseInt(body.price) : undefined,
-        images: body.images,
-        address: body.address,
-        city: body.city,
-        bedroom: body.bedroom ? parseInt(body.bedroom) : undefined,
-        bathroom: body.bathroom ? parseFloat(body.bathroom) : undefined,
-        latitude: body.latitude,
-        longitude: body.longitude,
-        type: body.type,
-        property: body.property,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            avatar: true,
-            createdAt: true
+    // Upload new images to Cloudinary if any are base64
+    let imageUrls = existingPost.images || [];
+    if (postData && Array.isArray(postData.images)) {
+      if (postData.images.length > 0) {
+        // Always re-upload any base64 images, keep URLs as is
+        const uploadPromises = postData.images.map(async (img) => {
+          if (typeof img === 'string' && img.startsWith('data:image/')) {
+            try {
+              const uploadRes = await cloudinary.uploader.upload(img, {
+                folder: 'property-listings',
+                resource_type: 'image',
+              });
+              return uploadRes.secure_url;
+            } catch (err) {
+              console.error('Cloudinary upload error:', err);
+              return null;
+            }
+          } else if (typeof img === 'string' && img.startsWith('http')) {
+            // Already a Cloudinary or remote URL, keep as is
+            return img;
+          } else {
+            // Not a valid image string, skip
+            return null;
           }
-        },
-        postDetail: true
+        });
+        imageUrls = (await Promise.all(uploadPromises)).filter(Boolean);
+        console.log(`Updated image URLs:`, imageUrls);
+      } else {
+        // If images array is empty, clear images
+        imageUrls = [];
       }
-    });
-
-    // Transform to include ownerInfo
-    const transformedPost = {
-      ...updatedPost,
-      ownerInfo: {
-        id: updatedPost.user.id,
-        username: updatedPost.user.username,
-        email: updatedPost.user.email,
-        fullName: updatedPost.user.username,
-        avatar: updatedPost.user.avatar,
-        verified: false,
-        showContactInfo: true,
-        memberSince: updatedPost.user.createdAt,
-        location: `${updatedPost.city}`,
-        userType: 'standard'
-      }
+    }
+    // Update post (remove latitude, longitude; add description)
+    const updateData = {
+      title: postData.title,
+      price: postData.price ? parseFloat(postData.price) : undefined,
+      images: imageUrls,
+      address: postData.address,
+      city: postData.city,
+      bedroom: postData.bedroom ? parseInt(postData.bedroom) : undefined,
+      bathroom: postData.bathroom ? parseFloat(postData.bathroom) : undefined,
+      type: postData.type,
+      property: postData.property,
+      description: postData.description || '',
     };
-    
-    res.status(200).json(transformedPost);
+    const updatedPost = await Post.findByIdAndUpdate(id, updateData, { new: true }).populate('userId');
+    // Update or create postDetail if provided
+    let updatedPostDetail = null;
+    if (postDetail) {
+      if (updatedPost.postDetail) {
+        updatedPostDetail = await PostDetail.findByIdAndUpdate(
+          updatedPost.postDetail,
+          { ...postDetail },
+          { new: true, upsert: true }
+        );
+      } else {
+        updatedPostDetail = await PostDetail.create({ ...postDetail, postId: updatedPost._id });
+        updatedPost.postDetail = updatedPostDetail._id;
+        await updatedPost.save();
+      }
+    }
+    // Populate postDetail for response
+    const populatedPost = await Post.findById(updatedPost._id).populate('userId').populate('postDetail');
+    const ownerInfo = populatedPost.userId ? {
+      id: populatedPost.userId.id,
+      username: populatedPost.userId.username,
+      email: populatedPost.userId.email,
+      fullName: populatedPost.userId.fullName || populatedPost.userId.username,
+      avatar: populatedPost.userId.avatar,
+      verified: false,
+      phone: populatedPost.userId.phone || null,
+      showContactInfo: true,
+      memberSince: populatedPost.userId.createdAt,
+      location: [
+        populatedPost.address,
+        populatedPost.city,
+        populatedPost.state ? populatedPost.state : null,
+        populatedPost.zipCode ? populatedPost.zipCode : null,
+        populatedPost.country
+      ].filter(Boolean).join(', '),
+      userType: 'standard',
+    } : null;
+    const responsePost = {
+      ...populatedPost.toObject(),
+      ownerInfo,
+      postDetail: populatedPost.postDetail || null,
+    };
+    res.status(200).json(responsePost);
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Failed to update post" });
@@ -333,29 +298,25 @@ export const updatePost = async (req, res) => {
 
 export const deletePost = async (req, res) => {
   const id = req.params.id;
-  const tokenUserId = req.userId;
-
+  const tokenUserId = req.user.id;
   try {
     // First check if post exists and belongs to this user
-    const existingPost = await prisma.post.findUnique({
-      where: { id },
-      select: { userId: true }
-    });
-    
+    const existingPost = await Post.findById(id);
     if (!existingPost) {
       return res.status(404).json({ message: "Post not found" });
     }
-    
-    if (existingPost.userId !== tokenUserId) {
+    if (existingPost.userId.toString() !== tokenUserId) {
       return res.status(403).json({ message: "Not authorized to delete this post" });
     }
-    
-    // Delete post (postDetail will be automatically deleted due to Cascade)
-    await prisma.post.delete({
-      where: { id }
-    });
-    
-    res.status(200).json({ message: "Post deleted" });
+    // Remove post ID from all users' savedPosts arrays
+    await User.updateMany(
+      { savedPosts: id },
+      { $pull: { savedPosts: id } }
+    );
+    // Remove all SavedPost documents for this post
+    await SavedPost.deleteMany({ post: id });
+    await Post.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: "Post deleted and removed from all users' saved posts" });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Failed to delete post" });

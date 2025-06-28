@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 
 // Define the socket server URL - use production URL
-const SOCKET_URL = 'https://property-state-socket.onrender.com';
+const SOCKET_URL = 'http://localhost:4001'
 
 console.log('🔌 Using Socket URL:', SOCKET_URL);
 

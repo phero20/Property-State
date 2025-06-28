@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../services/api';
 import { Link } from 'react-router-dom';
+import PostCard from '../components/PostCard';
+import PropertyCard from '../components/PropertyCard';
 
 const Profile = () => {
   const { user, isAuthenticated, updateUser } = useAuth();
@@ -37,6 +39,18 @@ const Profile = () => {
     }
   }, [isAuthenticated, user]);
 
+  useEffect(() => {
+    if (!user?._id) return;
+    loadProfileData();
+  }, [user?._id]);
+
+  useEffect(() => {
+    if (activeTab === 'saved' && isAuthenticated) {
+      fetchSavedPosts();
+    }
+    // eslint-disable-next-line
+  }, [activeTab, isAuthenticated]);
+
   const loadProfileData = async () => {
     setLoading(true);
     try {
@@ -56,6 +70,7 @@ const Profile = () => {
     try {
       console.log('📊 Fetching user stats...');
       const response = await userAPI.getUserStats();
+      console.log('stats response',response)
       setStats(response.data || {
         totalPosts: 0,
         totalViews: 0,
@@ -77,7 +92,7 @@ const Profile = () => {
   const fetchProfilePosts = async () => {
     try {
       console.log('📥 Fetching profile posts...');
-      const response = await userAPI.getProfilePosts();
+      const response = await userAPI.getProfilePosts(user?._id);
       setUserPosts(response.data || []);
       console.log('✅ Profile posts loaded:', response.data?.length || 0);
     } catch (error) {
@@ -90,43 +105,53 @@ const Profile = () => {
     try {
       console.log('💾 Fetching saved posts...');
       const response = await userAPI.getSavedPosts();
-      setSavedPosts(response.data || []);
-      console.log('✅ Saved posts loaded:', response.data?.length || 0);
+      // Filter out null/undefined posts (deleted posts)
+      const filtered = (response.data || []).filter(Boolean);
+      setSavedPosts(filtered);
+      // Update stats.savedPosts to match the actual count of available posts
+      setStats((prev) => ({ ...prev, savedPosts: filtered.length }));
+      console.log('✅ Saved posts loaded:', filtered.length);
+      // Always refresh stats after updating saved posts
+      await fetchUserStats();
     } catch (error) {
       console.error('Error fetching saved posts:', error);
       setSavedPosts([]);
+      setStats((prev) => ({ ...prev, savedPosts: 0 }));
+      await fetchUserStats();
     }
   };
 
   const handleEditProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+    const token = user.token;
     try {
-      console.log('🔄 Updating profile...', editForm);
-      
       const updatedData = {
-        ...editForm,
-        location: editForm.city && editForm.state ? `${editForm.city}, ${editForm.state}` : '',
-        lastModified: new Date().toISOString()
+        fullName: editForm.fullName,
+        phone: editForm.phone,
+        city: editForm.city,
+        state: editForm.state,
+        showContactInfo: editForm.showContactInfo,
       };
-
       const response = await userAPI.updateProfile(updatedData);
-      
-      // Update auth context
-      await updateUser(updatedData);
-      
+
+      // Check for error in response
+      if (!response) {
+        throw new Error("Failed to update profile");
+      }
+      // Update auth context with the returned user data
+      updateUser(response.userWithoutPw, token);
+
       setIsEditing(false);
-      console.log('✅ Profile updated successfully');
       alert('Profile updated successfully!');
-      
     } catch (error) {
-      console.error('❌ Error updating profile:', error);
+      console.error('❌ Error updatingggg profile:', error);
       alert('Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Not available';
@@ -182,9 +207,9 @@ const Profile = () => {
           {/* Avatar */}
           <div className="w-24 h-24 rounded-full bg-blue-500 flex items-center justify-center text-white text-3xl font-bold">
             {user?.avatar ? (
-              <img 
-                src={user.avatar} 
-                alt={user.username} 
+              <img
+                src={user.avatar}
+                alt={user.username}
                 className="w-24 h-24 rounded-full object-cover"
               />
             ) : (
@@ -199,9 +224,15 @@ const Profile = () => {
             </h1>
             <p className="text-gray-600">@{user?.username}</p>
             <p className="text-gray-600">{user?.email}</p>
-            {user?.location && (
-              <p className="text-gray-500">📍 {user.location}</p>
-            )}
+
+            <p className="text-gray-500">
+              📍
+              {user.address && <span>{user.address}, </span>}
+              {user.city && <span>{user.city}, </span>}
+              {user.state && <span>{user.state} </span>}
+              {user.zipCode && <span>{user.zipCode}, </span>}
+              {user.country && <span>{user.country}</span>}
+            </p>
             <p className="text-sm text-gray-500 mt-2">
               Member since {formatDate(user?.createdAt)}
             </p>
@@ -227,7 +258,7 @@ const Profile = () => {
                 <input
                   type="text"
                   value={editForm.fullName}
-                  onChange={(e) => setEditForm({...editForm, fullName: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -239,7 +270,7 @@ const Profile = () => {
                 <input
                   type="tel"
                   value={editForm.phone}
-                  onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -251,7 +282,7 @@ const Profile = () => {
                 <input
                   type="text"
                   value={editForm.city}
-                  onChange={(e) => setEditForm({...editForm, city: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -263,7 +294,7 @@ const Profile = () => {
                 <input
                   type="text"
                   value={editForm.state}
-                  onChange={(e) => setEditForm({...editForm, state: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -274,7 +305,7 @@ const Profile = () => {
                 <input
                   type="checkbox"
                   checked={editForm.showContactInfo}
-                  onChange={(e) => setEditForm({...editForm, showContactInfo: e.target.checked})}
+                  onChange={(e) => setEditForm({ ...editForm, showContactInfo: e.target.checked })}
                   className="mr-2"
                 />
                 <span className="text-sm text-gray-700">Show contact information to other users</span>
@@ -329,11 +360,10 @@ const Profile = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-2 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
+                className={`py-4 px-2 border-b-2 cursor-pointer font-medium text-sm ${activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 {tab.label}
                 {tab.count !== null && (
@@ -371,7 +401,13 @@ const Profile = () => {
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Location:</span>
-                    <span className="ml-2 text-gray-600">{user?.location || 'Not provided'}</span>
+
+
+                    <span className="ml-2 text-gray-600"> {user.address && <span>{user.address}, </span>}
+                      {user.city && <span>{user.city}, </span>}
+                      {user.state && <span>{user.state} </span>}
+                      {user.zipCode && <span>{user.zipCode}, </span>}
+                      {user.country && <span>{user.country}</span>}</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Member Since:</span>
@@ -421,52 +457,8 @@ const Profile = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {userPosts.map((post) => (
-                    <div key={post.id} className="bg-white border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                      <div className="relative">
-                        <img
-                          src={post.images?.[0] || '/placeholder-house.jpg'}
-                          alt={post.title}
-                          className="w-full h-48 object-cover"
-                          onError={(e) => {
-                            e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23f3f4f6"/><text x="150" y="100" text-anchor="middle" dy=".3em" fill="%236b7280" font-family="Arial, sans-serif" font-size="48">🏠</text></svg>';
-                          }}
-                        />
-                        <div className="absolute top-2 right-2">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold text-white ${
-                            post.type === 'rent' ? 'bg-blue-500' : 'bg-green-500'
-                          }`}>
-                            {post.type === 'rent' ? 'Rent' : 'Sale'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2 line-clamp-2">{post.title}</h4>
-                        <p className="text-gray-600 text-sm mb-2">📍 {post.city}</p>
-                        <div className="flex justify-between items-center">
-                          <span className="text-lg font-bold text-blue-600">
-                            {formatPrice(post.price)}
-                            {post.type === 'rent' && <span className="text-sm">/mo</span>}
-                          </span>
-                          <div className="flex space-x-2 text-sm text-gray-500">
-                            {post.bedroom > 0 && <span>🛏️ {post.bedroom}</span>}
-                            {post.bathroom > 0 && <span>🚿 {post.bathroom}</span>}
-                          </div>
-                        </div>
-                        <div className="mt-3 flex space-x-2">
-                          <Link
-                            to={`/posts/${post.id}`}
-                            className="flex-1 bg-blue-600 text-white text-center py-2 rounded text-sm hover:bg-blue-700 transition-colors"
-                          >
-                            View Details
-                          </Link>
-                          <button className="flex-1 bg-gray-200 text-gray-700 py-2 rounded text-sm hover:bg-gray-300 transition-colors">
-                            Edit
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                  {userPosts.map(post => (
+                    <PropertyCard key={post._id} post={post} />
                   ))}
                 </div>
               )}
@@ -497,45 +489,8 @@ const Profile = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {savedPosts.map((post) => (
-                    <div key={post.id} className="bg-white border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                      <div className="relative">
-                        <img
-                          src={post.images?.[0] || '/placeholder-house.jpg'}
-                          alt={post.title}
-                          className="w-full h-48 object-cover"
-                          onError={(e) => {
-                            e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23f3f4f6"/><text x="150" y="100" text-anchor="middle" dy=".3em" fill="%236b7280" font-family="Arial, sans-serif" font-size="48">💾</text></svg>';
-                          }}
-                        />
-                        <div className="absolute top-2 right-2">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold text-white ${
-                            post.type === 'rent' ? 'bg-blue-500' : 'bg-green-500'
-                          }`}>
-                            {post.type === 'rent' ? 'Rent' : 'Sale'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">{post.title}</h4>
-                        <p className="text-gray-600 text-sm mb-2">📍 {post.city}</p>
-                        <div className="flex justify-between items-center">
-                          <span className="text-lg font-bold text-blue-600">
-                            {formatPrice(post.price)}
-                            {post.type === 'rent' && <span className="text-sm">/mo</span>}
-                          </span>
-                        </div>
-                        <div className="mt-3">
-                          <Link
-                            to={`/posts/${post.id}`}
-                            className="w-full bg-blue-600 text-white text-center py-2 rounded text-sm hover:bg-blue-700 transition-colors"
-                          >
-                            View Property
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
+                  {savedPosts.map(post => (
+                    post ? <PropertyCard key={post._id || post.id} post={post} isSaved={true} /> : null
                   ))}
                 </div>
               )}

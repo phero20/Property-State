@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { usePosts } from '../hooks/usePosts';
 import PropertyCard from '../components/PropertyCard';
 import { useApiStatus } from '../context/ApiStatusContext';
-import { mockPosts } from '../services/mockData';
 
 const Posts = () => {
   const { posts, loading, error, loadPosts } = usePosts();
@@ -18,18 +17,13 @@ const Posts = () => {
     search: ''
   });
 
-  // Use mock data when API is offline or posts are empty
-  const displayPosts = isUsingMockData && (!posts || !posts.allPosts || posts.allPosts.length === 0) 
-    ? mockPosts 
-    : (posts && posts.allPosts ? posts.allPosts : []);
-
   // Apply filters whenever posts or filters change
   useEffect(() => {
     console.log('🔍 Applying filters to posts...');
-    console.log('📊 Total posts available:', displayPosts.length);
+    console.log('📊 Total posts available:', posts.allPosts.length);
     console.log('🏷️ Current filters:', filters);
 
-    let filtered = [...displayPosts];
+    let filtered = [...posts.allPosts];
 
     // Apply filters
     if (filters.city) {
@@ -72,7 +66,7 @@ const Posts = () => {
 
     console.log('✅ Filtered posts count:', filtered.length);
     setFilteredPosts(filtered);
-  }, [displayPosts, filters]);
+  }, [posts.allPosts, filters]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -310,8 +304,8 @@ const Posts = () => {
       {/* Properties Grid */}
       {filteredPosts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredPosts.map((post) => (
-            <PropertyCard key={post.id} post={post} />
+          {filteredPosts.map(post => (
+            <PropertyCard key={post._id} post={{...post, id: post._id}} />
           ))}
         </div>
       ) : (

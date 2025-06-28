@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { PrismaClient } from '@prisma/client';
 
 // Import your routes
 import authRoutes from './routes/auth.route.js';
@@ -19,7 +18,6 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Create Express app instance
 const app = express();
-const prisma = new PrismaClient();
 
 console.log('📋 Environment variables loaded:');
 console.log('- MONGO_URI:', process.env.DATABASE_URL ? '✓ Set' : '✗ Missing');
@@ -30,6 +28,7 @@ console.log('- PORT:', process.env.PORT || '4000 (default)');
 const checkDatabaseConnection = async () => {
   try {
     const mongoUrl = process.env.DATABASE_URL;
+    console.log(mongoUrl)
     if (!mongoUrl) {
       throw new Error('DATABASE_URL is not defined in environment variables');
     }
@@ -79,31 +78,27 @@ const listRoutes = () => {
 };
 
 // Middleware
+const allowedOrigins = [
+  'https://property-state-1.onrender.com',
+  'http://localhost:5173',
+  'https://property-state.onrender.com'
+];
+
 app.use(cors({
-  origin: [
-    'https://property-state-1.onrender.com',
-    process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : undefined
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'), false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '50mb' })); // Increase limit for image uploads
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://property-state-1.onrender.com');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle preflight OPTIONS requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  next();
-});
 
 // Debug middleware for logging requests
 app.use((req, res, next) => {
@@ -211,4 +206,15 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.connection.on('disconnected', () => {
   console.log('❗ MongoDB connection disconnected');
+});
+
+const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://mdferozahmed27156:feroz326@cluster0.fdjcwh6.mongodb.net/property?retryWrites=true&w=majority&appName=Cluster0';
+
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => {
+  console.log('MongoDB connected');
+}).catch((err) => {
+  console.error('MongoDB connection error:', err);
 });

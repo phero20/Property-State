@@ -33,7 +33,8 @@ const Register = () => {
     showOnlineStatus: true,
     language: 'English',
     currency: 'USD',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    avatar: null,
   });
 
   // Define the steps of our registration process with enhanced descriptions and icons
@@ -146,12 +147,15 @@ const Register = () => {
         language: formData.language,
         currency: formData.currency,
         timezone: formData.timezone,
+
+        // Avatar
+        avatar: formData.avatar,
       };
 
       console.log('📝 Complete registration data being sent:', completeUserData);
       
       const result = await register(completeUserData);
-      
+      console.log(result)
       if (result.success) {
         console.log('✅ Registration successful with complete data:', result.user);
         navigate('/posts');
@@ -477,21 +481,39 @@ const Register = () => {
                       </select>
                     </div>
 
-                    {/* Profile picture placeholder */}
+                    {/* Profile picture upload */}
                     <div className="col-span-2 mt-4">
                       <label className="block text-sm font-medium text-gray-700">Profile Photo</label>
                       <div className="mt-2 flex items-center">
                         <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border border-gray-300">
-                          <svg className="h-12 w-12 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-                          </svg>
+                          {formData.avatar ? (
+                            <img src={formData.avatar} alt="Avatar Preview" className="h-20 w-20 object-cover rounded-full" />
+                          ) : (
+                            <svg className="h-12 w-12 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          className="ml-5 bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
+                        <label htmlFor="avatar-upload" className="ml-5 bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
                           Upload
-                        </button>
+                          <input
+                            id="avatar-upload"
+                            name="avatar"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setFormData(prev => ({ ...prev, avatar: reader.result }));
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
                         <p className="text-xs text-gray-500 ml-3">Optional - You can add this later</p>
                       </div>
                     </div>
@@ -623,200 +645,202 @@ const Register = () => {
                         Customize how you want to use PropertyState. You can change these settings anytime.
                       </p>
                     </div>
-                    
-                    <div className="col-span-2 sm:col-span-1">
-                      <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
-                        Account Type
-                      </label>
-                      <div className="mt-1">
-                        <select
-                          id="userType"
-                          name="userType"
-                          value={formData.userType}
-                          onChange={handleChange}
-                          className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        >
-                          <option value="standard">Standard - Free Account</option>
-                          <option value="premium">Premium - $9.99/month</option>
-                          <option value="agent">Real Estate Agent - $19.99/month</option>
-                          <option value="landlord">Property Owner - $14.99/month</option>
-                        </select>
+                    {/* Prevent Enter key from submitting form in Step 4 */}
+                    <div onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} className="contents">
+                      <div className="col-span-2 sm:col-span-1">
+                        <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
+                          Account Type
+                        </label>
+                        <div className="mt-1">
+                          <select
+                            id="userType"
+                            name="userType"
+                            value={formData.userType}
+                            onChange={handleChange}
+                            className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          >
+                            <option value="standard">Standard - Free Account</option>
+                            <option value="premium">Premium - $9.99/month</option>
+                            <option value="agent">Real Estate Agent - $19.99/month</option>
+                            <option value="landlord">Property Owner - $14.99/month</option>
+                          </select>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">You can upgrade your account anytime</p>
                       </div>
-                      <p className="mt-1 text-xs text-gray-500">You can upgrade your account anytime</p>
-                    </div>
 
-                    <div className="col-span-2 sm:col-span-1">
-                      <label htmlFor="language" className="block text-sm font-medium text-gray-700">
-                        Preferred Language
-                      </label>
-                      <div className="mt-1 relative">
-                        <select
-                          id="language"
-                          name="language"
-                          value={formData.language}
-                          onChange={handleChange}
-                          className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        >
-                          <option value="English">English (US)</option>
-                          <option value="Spanish">Español (Spanish)</option>
-                          <option value="French">Français (French)</option>
-                          <option value="German">Deutsch (German)</option>
-                          <option value="Chinese">中文 (Chinese)</option>
-                        </select>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label htmlFor="language" className="block text-sm font-medium text-gray-700">
+                          Preferred Language
+                        </label>
+                        <div className="mt-1 relative">
+                          <select
+                            id="language"
+                            name="language"
+                            value={formData.language}
+                            onChange={handleChange}
+                            className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          >
+                            <option value="English">English (US)</option>
+                            <option value="Spanish">Español (Spanish)</option>
+                            <option value="French">Français (French)</option>
+                            <option value="German">Deutsch (German)</option>
+                            <option value="Chinese">中文 (Chinese)</option>
+                          </select>
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="col-span-2 sm:col-span-1">
-                      <label htmlFor="currency" className="block text-sm font-medium text-gray-700">
-                        Preferred Currency
-                      </label>
-                      <div className="mt-1 relative">
-                        <select
-                          id="currency"
-                          name="currency"
-                          value={formData.currency}
-                          onChange={handleChange}
-                          className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        >
-                          <option value="USD">$ - US Dollar (USD)</option>
-                          <option value="EUR">€ - Euro (EUR)</option>
-                          <option value="GBP">£ - British Pound (GBP)</option>
-                          <option value="JPY">¥ - Japanese Yen (JPY)</option>
-                          <option value="CAD">C$ - Canadian Dollar (CAD)</option>
-                          <option value="AUD">A$ - Australian Dollar (AUD)</option>
-                          <option value="INR">₹ - Indian Rupee (INR)</option>
-                        </select>
+                      
+                      <div className="col-span-2 sm:col-span-1">
+                        <label htmlFor="currency" className="block text-sm font-medium text-gray-700">
+                          Preferred Currency
+                        </label>
+                        <div className="mt-1 relative">
+                          <select
+                            id="currency"
+                            name="currency"
+                            value={formData.currency}
+                            onChange={handleChange}
+                            className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          >
+                            <option value="USD">$ - US Dollar (USD)</option>
+                            <option value="EUR">€ - Euro (EUR)</option>
+                            <option value="GBP">£ - British Pound (GBP)</option>
+                            <option value="JPY">¥ - Japanese Yen (JPY)</option>
+                            <option value="CAD">C$ - Canadian Dollar (CAD)</option>
+                            <option value="AUD">A$ - Australian Dollar (AUD)</option>
+                            <option value="INR">₹ - Indian Rupee (INR)</option>
+                          </select>
+                        </div>
                       </div>
-                    </div>
-                    
-                    {/* Notification Settings with toggles */}
-                    <div className="col-span-2 bg-gray-50 p-4 rounded-lg mt-4">
-                      <fieldset>
-                        <legend className="text-base font-medium text-gray-700 mb-4">Communication Preferences</legend>
-                        
-                        <div className="space-y-4">
-                          <div className="relative flex items-start">
-                            <div className="flex items-center h-5">
-                              <input
-                                id="emailNotifications"
-                                name="emailNotifications"
-                                type="checkbox"
-                                checked={formData.emailNotifications}
-                                onChange={handleChange}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                              />
-                            </div>
-                            <div className="ml-3 text-sm">
-                              <label htmlFor="emailNotifications" className="font-medium text-gray-700">
-                                Email Notifications
-                              </label>
-                              <p className="text-gray-500">Get notified about new listings and inquiries</p>
-                            </div>
-                          </div>
+                      
+                      {/* Notification Settings with toggles */}
+                      <div className="col-span-2 bg-gray-50 p-4 rounded-lg mt-4">
+                        <fieldset>
+                          <legend className="text-base font-medium text-gray-700 mb-4">Communication Preferences</legend>
                           
-                          <div className="relative flex items-start">
-                            <div className="flex items-center h-5">
-                              <input
-                                id="smsNotifications"
-                                name="smsNotifications"
-                                type="checkbox"
-                                checked={formData.smsNotifications}
-                                onChange={handleChange}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                              />
+                          <div className="space-y-4">
+                            <div className="relative flex items-start">
+                              <div className="flex items-center h-5">
+                                <input
+                                  id="emailNotifications"
+                                  name="emailNotifications"
+                                  type="checkbox"
+                                  checked={formData.emailNotifications}
+                                  onChange={handleChange}
+                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="ml-3 text-sm">
+                                <label htmlFor="emailNotifications" className="font-medium text-gray-700">
+                                  Email Notifications
+                                </label>
+                                <p className="text-gray-500">Get notified about new listings and inquiries</p>
+                              </div>
                             </div>
-                            <div className="ml-3 text-sm">
-                              <label htmlFor="smsNotifications" className="font-medium text-gray-700">
-                                SMS Notifications
-                              </label>
-                              <p className="text-gray-500">Receive text messages for important updates</p>
+                            
+                            <div className="relative flex items-start">
+                              <div className="flex items-center h-5">
+                                <input
+                                  id="smsNotifications"
+                                  name="smsNotifications"
+                                  type="checkbox"
+                                  checked={formData.smsNotifications}
+                                  onChange={handleChange}
+                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="ml-3 text-sm">
+                                <label htmlFor="smsNotifications" className="font-medium text-gray-700">
+                                  SMS Notifications
+                                </label>
+                                <p className="text-gray-500">Receive text messages for important updates</p>
+                              </div>
+                            </div>
+                            
+                            <div className="relative flex items-start">
+                              <div className="flex items-center h-5">
+                                <input
+                                  id="marketingEmails"
+                                  name="marketingEmails"
+                                  type="checkbox"
+                                  checked={formData.marketingEmails}
+                                  onChange={handleChange}
+                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="ml-3 text-sm">
+                                <label htmlFor="marketingEmails" className="font-medium text-gray-700">
+                                  Marketing Communications
+                                </label>
+                                <p className="text-gray-500">Receive special offers and promotions</p>
+                              </div>
                             </div>
                           </div>
+                        </fieldset>
+                      </div>
+                      
+                      <div className="col-span-2 bg-gray-50 p-4 rounded-lg mt-4">
+                        <fieldset>
+                          <legend className="text-base font-medium text-gray-700 mb-4">Privacy Settings</legend>
                           
-                          <div className="relative flex items-start">
-                            <div className="flex items-center h-5">
-                              <input
-                                id="marketingEmails"
-                                name="marketingEmails"
-                                type="checkbox"
-                                checked={formData.marketingEmails}
-                                onChange={handleChange}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                              />
+                          <div className="space-y-4">
+                            <div className="relative flex items-start">
+                              <div className="flex items-center h-5">
+                                <input
+                                  id="showContactInfo"
+                                  name="showContactInfo"
+                                  type="checkbox"
+                                  checked={formData.showContactInfo}
+                                  onChange={handleChange}
+                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="ml-3 text-sm">
+                                <label htmlFor="showContactInfo" className="font-medium text-gray-700">
+                                  Show Contact Information
+                                </label>
+                                <p className="text-gray-500">Display your contact details on your profile</p>
+                              </div>
                             </div>
-                            <div className="ml-3 text-sm">
-                              <label htmlFor="marketingEmails" className="font-medium text-gray-700">
-                                Marketing Communications
-                              </label>
-                              <p className="text-gray-500">Receive special offers and promotions</p>
-                            </div>
-                          </div>
-                        </div>
-                      </fieldset>
-                    </div>
-                    
-                    <div className="col-span-2 bg-gray-50 p-4 rounded-lg mt-4">
-                      <fieldset>
-                        <legend className="text-base font-medium text-gray-700 mb-4">Privacy Settings</legend>
-                        
-                        <div className="space-y-4">
-                          <div className="relative flex items-start">
-                            <div className="flex items-center h-5">
-                              <input
-                                id="showContactInfo"
-                                name="showContactInfo"
-                                type="checkbox"
-                                checked={formData.showContactInfo}
-                                onChange={handleChange}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                              />
-                            </div>
-                            <div className="ml-3 text-sm">
-                              <label htmlFor="showContactInfo" className="font-medium text-gray-700">
-                                Show Contact Information
-                              </label>
-                              <p className="text-gray-500">Display your contact details on your profile</p>
+                            
+                            <div className="relative flex items-start">
+                              <div className="flex items-center h-5">
+                                <input
+                                  id="showOnlineStatus"
+                                  name="showOnlineStatus"
+                                  type="checkbox"
+                                  checked={formData.showOnlineStatus}
+                                  onChange={handleChange}
+                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="ml-3 text-sm">
+                                <label htmlFor="showOnlineStatus" className="font-medium text-gray-700">
+                                  Show Online Status
+                                </label>
+                                <p className="text-gray-500">Let others know when you're active</p>
+                              </div>
                             </div>
                           </div>
-                          
-                          <div className="relative flex items-start">
-                            <div className="flex items-center h-5">
-                              <input
-                                id="showOnlineStatus"
-                                name="showOnlineStatus"
-                                type="checkbox"
-                                checked={formData.showOnlineStatus}
-                                onChange={handleChange}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                              />
-                            </div>
-                            <div className="ml-3 text-sm">
-                              <label htmlFor="showOnlineStatus" className="font-medium text-gray-700">
-                                Show Online Status
-                              </label>
-                              <p className="text-gray-500">Let others know when you're active</p>
-                            </div>
+                        </fieldset>
+                      </div>
+                      
+                      {/* Terms and Conditions with enhanced styling */}
+                      <div className="col-span-2 mt-8 bg-blue-50 p-5 rounded-lg border border-blue-100">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                           </div>
-                        </div>
-                      </fieldset>
-                    </div>
-                    
-                    {/* Terms and Conditions with enhanced styling */}
-                    <div className="col-span-2 mt-8 bg-blue-50 p-5 rounded-lg border border-blue-100">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="text-sm font-medium text-blue-800">Terms and Conditions</h3>
-                          <p className="text-sm text-blue-700 mt-2">
-                            By creating an account, you agree to PropertyState&apos;s{' '}
-                            <a href="#terms" className="underline font-medium hover:text-blue-800">Terms of Service</a>{' '}
-                            and{' '}
-                            <a href="#privacy" className="underline font-medium hover:text-blue-800">Privacy Policy</a>.
-                          </p>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-blue-800">Terms and Conditions</h3>
+                            <p className="text-sm text-blue-700 mt-2">
+                              By creating an account, you agree to PropertyState&apos;s{' '}
+                              <a href="#terms" className="underline font-medium hover:text-blue-800">Terms of Service</a>{' '}
+                              and{' '}
+                              <a href="#privacy" className="underline font-medium hover:text-blue-800">Privacy Policy</a>.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -860,7 +884,8 @@ const Register = () => {
                         <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                       </svg>
                     </button>
-                  ) : (
+                  ) : null}
+                  {currentStep === steps.length && (
                     <button
                       type="submit"
                       disabled={loading}

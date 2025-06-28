@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Use the environment variable or fallback to production URL
-const API_URL = import.meta.env.VITE_API_URL || 'https://property-state.onrender.com/api';
+// Use the VITE_API_URL environment variable
+const API_URL = 'http://localhost:4000/api';
 
 export const login = async (credentials) => {
   console.log('🔐 Login attempt...');
@@ -14,61 +14,52 @@ export const login = async (credentials) => {
   console.log(`🔑 Attempting login with ${loginField}: ${loginValue}`);
   
   try {
-    // Use axios for better error handling with full API URL
-    const response = await axios.post(`${API_URL}/auth/login`, {
-      [loginField]: loginValue,
-      password: credentials.password
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      withCredentials: true
+    const response = await axios.post(`${API_URL}/auth/login`, { userData: credentials }, {
+      headers: { 'Content-Type': 'application/json' }
     });
-    
-    return response.data;
-  } catch (error) {
-    console.error('❌ Login failed:', error);
-    
-    // Check for CORS errors
-    if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
-      console.log('⚠️ CORS issue detected. Trying development fallback...');
-      
-      if (process.env.NODE_ENV !== 'production') {
-        // Development fallback - create a mock user
-        const mockUser = {
-          id: 'dev-user-123',
-          username: loginValue,
-          email: `${loginValue}@example.com`,
-          token: 'mock-token-for-development',
-          fullName: 'Development User'
-        };
-        
-        return mockUser;
-      }
+    const result = response.data;
+    if (result.success) {
+      const completeUserData = {
+        ...result.user,
+        token: result.token,
+        lastLogin: new Date().toISOString(),
+      };
+      localStorage.setItem('user', JSON.stringify(completeUserData));
     }
-    
-    throw error;
+    return result;
+  } catch (error) {
+    const message = error.response?.data?.message || 'Login failed';
+    return { success: false, message };
   }
 };
 
 export const register = async (userData) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/register`, userData);
-    return response.data;
+    const response = await axios.post(`${API_URL}/auth/register`, { userData }, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const result = response.data;
+    if (result.success) {
+      const completeUserData = {
+        ...result.user,
+        token: result.token,
+        lastLogin: new Date().toISOString(),
+      };
+      localStorage.setItem('user', JSON.stringify(completeUserData));
+    }
+    return result;
   } catch (error) {
-    console.error('❌ Registration failed:', error);
-    throw error;
+    const message = error.response?.data?.message || 'Registration failed';
+    return { success: false, message };
   }
 };
 
 export const logout = async () => {
   try {
-    // Remove user from local storage
     localStorage.removeItem('user');
     return { success: true };
-  } catch (error) {
-    console.error('❌ Logout error:', error);
-    throw error;
+  } catch {
+    return { success: false, message: 'Logout error' };
   }
 };
 

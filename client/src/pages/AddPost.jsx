@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePosts } from '../hooks/usePosts';
+import { postAPI } from '../services/api';
 
 const AddPost = () => {
   const { isAuthenticated, user } = useAuth();
@@ -205,7 +206,7 @@ const AddPost = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Double-check authentication
     if (!isAuthenticated || !user) {
       alert('Please login to create a property listing');
@@ -217,78 +218,46 @@ const AddPost = () => {
 
     setLoading(true);
 
+    // Prepare postData (flat, no nested postDetail)
+    const postData = {
+      title: formData.title,
+      price: parseInt(formData.price),
+      address: formData.address,
+      city: formData.city,
+      bedroom: parseInt(formData.bedroom) || 0,
+      bathroom: parseFloat(formData.bathroom) || 0,
+      latitude: formData.latitude || null,
+      longitude: formData.longitude || null,
+      type: formData.type,
+      property: formData.property,
+      images: formData.images,
+      user: { connect: { id: user.id } },
+    };
+
+    // Prepare postDetail (flat)
+    const postDetailObj = {
+      desc: postDetail.desc || '',
+      utilities: postDetail.utilities || '',
+      pet: postDetail.pet || '',
+      income: postDetail.income || '',
+      size: postDetail.size ? parseInt(postDetail.size) : null,
+      school: postDetail.school ? parseInt(postDetail.school) : null,
+      bus: postDetail.bus ? parseInt(postDetail.bus) : null,
+      restaurant: postDetail.restaurant ? parseInt(postDetail.restaurant) : null,
+    };
+
+    // Debug log
+    console.log('Sending to API:', { postData, postDetail: postDetailObj });
+
     try {
-      // IMPORTANT: Make sure to properly format the post data with user connection
-      const postData = {
-        title: formData.title,
-        price: parseInt(formData.price),
-        address: formData.address,
-        city: formData.city,
-        bedroom: parseInt(formData.bedroom) || 0,
-        bathroom: parseFloat(formData.bathroom) || 0,
-        latitude: formData.latitude || null,
-        longitude: formData.longitude || null,
-        type: formData.type,
-        property: formData.property,
-        images: formData.images,
-        
-        // THIS IS THE KEY PART - explicitly pass user ID in the proper format
-        user: {
-          connect: { id: user.id }
-        },
-        
-        postDetail: {
-          create: {
-            desc: postDetail.desc || '',
-            utilities: postDetail.utilities || '',
-            pet: postDetail.pet || '',
-            income: postDetail.income || '',
-            size: postDetail.size ? parseInt(postDetail.size) : null,
-            school: postDetail.school ? parseInt(postDetail.school) : null,
-            bus: postDetail.bus ? parseInt(postDetail.bus) : null,
-            restaurant: postDetail.restaurant ? parseInt(postDetail.restaurant) : null
-          }
-        }
-      };
-
-      console.log('📤 Sending post data with user connection:', JSON.stringify({
-        userId: user.id,
-        userConnection: postData.user
-      }));
-
-      // If using Option 1 (usePosts hook):
-      const result = await createPost(postData);
-      
-      // OR if using Option 2 (postAPI):
-      // const result = await postAPI.createPost(postData);
-      
+      const result = await postAPI.createPost({ postData, postDetail: postDetailObj });
       console.log('✅ Post created successfully:', result);
-      
       alert('Property listing created successfully!');
       navigate('/posts');
-      
     } catch (error) {
       console.error('❌ Error creating post:', error);
-      
       if (error.response?.data) {
-        console.error('🔍 Server error details:', error.response.data);
-        
-        // Show specific error messages
-        if (error.response.data?.error?.includes('user')) {
-          console.error('🔍 Status code:', error.response.status);
-          
-          // If there's an authentication issue, redirect to login
-          if (error.response.status === 401 || error.response.status === 403) {
-            alert('Your session has expired. Please login again.');
-            logout(); // Make sure you have access to logout function
-            navigate('/login');
-            return;
-          }
-          
-          alert(`Error: There was a problem with user authentication. Please try logging in again.`);
-        } else {
-          alert(`Error: ${error.response.data?.message || error.message}`);
-        }
+        alert(`Error: ${error.response.data?.message || error.message}`);
       } else {
         alert('Error creating property listing. Please try again.');
       }

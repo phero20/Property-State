@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import authService from '../services/authService'; // Adjust the path as needed
+import authService from '../services/authService';
+import { userAPI } from '../services/api';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 const AuthContext = createContext();
 
@@ -25,19 +28,10 @@ export const AuthProvider = ({ children }) => {
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
         const userData = JSON.parse(savedUser);
-        console.log('🔍 Restored user from localStorage:', userData);
-        
-        // Ensure user has a valid token
-        if (!userData.token) {
-          userData.token = `user_${userData.id}`;
-          localStorage.setItem('user', JSON.stringify(userData));
-        }
-        
         setUser(userData);
         setIsAuthenticated(true);
       }
-    } catch (error) {
-      console.error('Auth check failed:', error);
+    } catch {
       logout();
     } finally {
       setLoading(false);
@@ -45,171 +39,73 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    try {
-      console.log('📝 Registration attempt...');
-      
-      // Try API registration first
-      const response = await fetch('http://property-state.onrender.com/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ API Registration successful:', result);
-        
-        const completeUserData = {
-          ...result.user,
-          token: result.token || `user_${result.user.id}`,
-          fullName: userData.fullName || userData.username,
-          phone: userData.phone || '',
-          city: userData.city || '',
-          state: userData.state || '',
-          location: userData.city && userData.state ? `${userData.city}, ${userData.state}` : '',
-          showContactInfo: userData.showContactInfo ?? true,
-          lastLogin: new Date().toISOString(),
-        };
-
-        setUser(completeUserData);
-        setIsAuthenticated(true);
-        localStorage.setItem('user', JSON.stringify(completeUserData));
-        
-        return { success: true, user: completeUserData };
-      } else {
-        throw new Error('Registration failed');
-      }
-    } catch (error) {
-      console.error('❌ Registration failed, using fallback:', error);
-      
-      // Fallback for development
-      const fallbackUserData = {
-        id: `user_${Date.now()}`,
-        username: userData.username,
-        email: userData.email,
-        token: `user_${Date.now()}`, // Generate a development token
-        avatar: null,
-        createdAt: new Date().toISOString(),
-        fullName: userData.fullName || userData.username,
-        phone: userData.phone || '',
-        city: userData.city || '',
-        state: userData.state || '',
-        location: userData.city && userData.state ? `${userData.city}, ${userData.state}` : '',
-        showContactInfo: userData.showContactInfo ?? true,
-        verified: false,
-        lastLogin: new Date().toISOString(),
-      };
-
-      console.log('✅ Fallback user created:', fallbackUserData);
-      
-      setUser(fallbackUserData);
+    setLoading(true);
+    const result = await authService.register(userData);
+    if (result.success) {
+      setUser({ ...result.user, token: result.token });
       setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(fallbackUserData));
-      
-      return { success: true, user: fallbackUserData };
     }
+    setLoading(false);
+    return result;
   };
 
   const login = async (credentials) => {
-    try {
-      setLoading(true);
-      console.log('🔐 Login attempt...');
-      
-      // Use the authService login function
-      const userData = await authService.login(credentials);
-      console.log('✅ Login successful');
-      
-      // Store user data in localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      // Update state
-      setUser(userData);
+    console.log("conetc")
+    setLoading(true);
+    const result = await authService.login(credentials);
+    if (result.success) {
+      setUser({ ...result.user, token: result.token });
       setIsAuthenticated(true);
-      
-      return { success: true, user: userData };
-    } catch (error) {
-      console.error('❌ Login failed:', error);
-      
-      // For development fallbacks (if needed)
-      if (process.env.NODE_ENV === 'development') {
-        // Your development fallback code...
-      }
-      
-      throw error;
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
+    return result;
   };
 
   const logout = async () => {
-    try {
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem('user');
-      console.log('👋 User logged out');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    await authService.logout();
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('user');
   };
 
   // Add this function to refresh user data
   const refreshUserData = async () => {
-    try {
-      if (user && user.id) {
-        const response = await userAPI.getUserProfile(user.id);
+    if (user && user.id) {
+      try {
+        const response = await userAPI.getProfile();
         if (response.data) {
-          // Update only user data, not token
           setUser(prev => ({ 
             ...prev, 
             ...response.data,
-            token: prev.token // Keep existing token
+            token: prev.token
           }));
         }
+      } catch {
+        // Ignore errors
       }
-    } catch (error) {
-      console.error('Error refreshing user data:', error);
     }
   };
 
-  // Call this when needed
+  // Add updateUser function for profile updates
+  const updateUser = (updatedUser) => {
+    setUser(prev => ({
+      ...prev,
+      ...updatedUser,
+      token: prev?.token // preserve token
+    }));
+    // Also update localStorage
+    localStorage.setItem('user', JSON.stringify({
+      ...user,
+      ...updatedUser,
+      token: user?.token
+    }));
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       refreshUserData();
     }
   }, [isAuthenticated]);
-
-  const checkAuthStatus = () => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        if (parsedUser && parsedUser.token) {
-          setUser(parsedUser);
-          setIsAuthenticated(true);
-          return;
-        }
-      } catch (error) {
-        console.error('Error parsing stored user data:', error);
-      }
-    }
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
-  const validateToken = (token) => {
-    if (!token) return false;
-    
-    try {
-      // For JWT tokens
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 > Date.now(); // Check if token is expired
-    } catch (e) {
-      console.error('Error validating token:', e);
-      return false;
-    }
-  };
 
   const value = {
     user,
@@ -217,7 +113,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
-    logout
+    logout,
+    updateUser // <-- expose updateUser
   };
 
   return (

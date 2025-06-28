@@ -6,7 +6,7 @@ dotenv.config();
 export const verifyToken = (req, res, next) => {
   try {
     // Log the authorization header for debugging
-    console.log('🔑 Authorization Header:', req.headers.authorization);
+    console.log('🔑 Authorization Headerrr:', req.headers.authorization);
     
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {

@@ -16,27 +16,12 @@ export const usePosts = () => {
       // Get all posts
       const response = await postAPI.getAllPosts();
       
-      // If we're using mock data from the fallback
-      if (response.isMock) {
-        console.log('🔄 Using mock post data in usePosts hook');
-        // Format the structure to match what the component expects
-        const formattedData = {
-          allPosts: response.data,
-          myPosts: response.data.filter(post => user && post.user && post.user.id === user.id)
-        };
-        
-        setPosts(formattedData);
-        console.log('✅ Posts loaded from API:', formattedData.allPosts.length, 'posts');
-        setLoading(false);
-        return;
-      }
-
       // Normal API response processing
       const allPosts = response.data;
       
       // Filter for user's posts if logged in
       const myPosts = user 
-        ? allPosts.filter(post => post.userId === user.id || (post.user && post.user.id === user.id))
+        ? allPosts.filter(post => post.userId === user._id || (post.user && post.user._id === user._id))
         : [];
       
       setPosts({ allPosts, myPosts });
@@ -53,5 +38,7 @@ export const usePosts = () => {
     loadPosts();
   }, [loadPosts]);
 
-  return { posts, loading, error, loadPosts };
+  const getPostById = (posts, id) => posts.find(post => post._id === id);
+
+  return { posts, loading, error, loadPosts, getPostById };
 };
