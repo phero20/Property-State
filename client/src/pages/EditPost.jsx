@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { postAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { toast } from '../utils/toast';
 
 const EditPost = () => {
   const { id } = useParams();
@@ -38,12 +39,11 @@ const EditPost = () => {
       try {
         setLoading(true);
         const response = await postAPI.getPost(id);
-        // Accept both response.data and response (for different API shapes)
         const postData = response.data || response;
-        // Check if the post belongs to the current user
         const ownerId = postData.userId?._id || postData.userId || postData.ownerInfo?.id;
         if (!user || ownerId !== user._id) {
           setError("You don't have permission to edit this property");
+          toast.error("You don't have permission to edit this property");
           return;
         }
         setFormData({
@@ -69,8 +69,8 @@ const EditPost = () => {
           }
         });
       } catch (error) {
-        console.error('Error fetching property:', error);
         setError('Failed to load property details.');
+        toast.error(`Failed to load property details. ${error.message}`);
       } finally {
         setLoading(false);
       }
@@ -91,16 +91,16 @@ const EditPost = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      // Move desc into postDetail, do not send description in postData
       const { postDetail, ...rest } = formData;
       const finalPostDetail = { ...postDetail, desc: formData.postDetail?.desc || '' };
       const postData = { ...rest };
-      delete postData.description; // Remove description from postData if present
+      delete postData.description;
       await postAPI.updatePost(id, { postData, postDetail: finalPostDetail });
+      toast.success('Property updated successfully!');
       navigate(`/posts/${id}`);
     } catch (error) {
-      console.error('Error updating property:', error);
       setError('Failed to update property.');
+      toast.error(`Failed to update property. ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -108,20 +108,21 @@ const EditPost = () => {
   
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center min-h-screen" style={{ background: 'var(--bg-main)' }}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="container mx-auto py-8 px-4">
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg">
+        <div className="p-4 rounded-lg" style={{ background: 'var(--bg-error-bg, #fef2f2)', border: '1px solid var(--theme-accent)', color: 'var(--theme-accent)' }}>
           <p>{error}</p>
           <button 
             onClick={() => navigate('/posts')}
-            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="mt-4 px-4 py-2 rounded hover:opacity-90 transition-colors"
+            style={{ background: 'var(--theme-accent)', color: 'white', cursor: 'pointer' }}
           >
             Back to Properties
           </button>
@@ -129,14 +130,14 @@ const EditPost = () => {
       </div>
     );
   }
-  
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">Edit Property</h1>
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">
+    <div className="container mx-auto py-8 px-4" style={{ background: 'var(--bg-main)' }}>
+      <h1 className="text-3xl font-bold mb-6" style={{ color: 'var(--theme-accent)' }}>Edit Property</h1>
+      <form onSubmit={handleSubmit} className="rounded-lg shadow-md p-6" style={{ background: 'var(--bg-card)' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
               Property Title
             </label>
             <input
@@ -145,11 +146,12 @@ const EditPost = () => {
               value={formData.title}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
               Price
             </label>
             <input
@@ -158,50 +160,55 @@ const EditPost = () => {
               value={formData.price}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Address</label>
             <input
               type="text"
               name="address"
               value={formData.address}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>City</label>
             <input
               type="text"
               name="city"
               value={formData.city}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Type</label>
             <select
               name="type"
               value={formData.type}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="rent">Rent</option>
               <option value="sale">Sale</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Property</label>
             <select
               name="property"
               value={formData.property}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="apartment">Apartment</option>
               <option value="house">House</option>
@@ -210,7 +217,7 @@ const EditPost = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Bedrooms</label>
             <input
               type="number"
               name="bedroom"
@@ -218,11 +225,12 @@ const EditPost = () => {
               value={formData.bedroom}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Bathrooms</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Bathrooms</label>
             <input
               type="number"
               name="bathroom"
@@ -230,32 +238,35 @@ const EditPost = () => {
               value={formData.bathroom}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
         </div>
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Description</label>
           <textarea
             name="desc"
             value={formData.postDetail?.desc || ''}
             onChange={e => setFormData(prev => ({ ...prev, postDetail: { ...prev.postDetail, desc: e.target.value } }))}
             rows={4}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+            style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
           />
         </div>
         {/* Images */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Images</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Images</label>
           <div className="flex flex-wrap gap-2 mb-2">
             {(formData.images || []).map((img, idx) => (
-              <img key={idx} src={img} alt="Property" className="w-20 h-20 object-cover rounded" />
+              <img key={idx} src={img} alt="Property" className="w-20 h-20 object-cover rounded border" style={{ borderColor: 'var(--theme-accent)' }} />
             ))}
           </div>
           <button
             type="button"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="px-4 py-2 rounded hover:opacity-90 focus:outline-none focus:ring-2 transition cursor-pointer"
+            style={{ background: 'var(--theme-accent)', color: 'white' }}
             onClick={() => document.getElementById('image-upload-input').click()}
           >
             Upload Images
@@ -285,12 +296,13 @@ const EditPost = () => {
         {/* postDetail fields */}
         <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Utilities</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Utilities</label>
             <select
               name="utilities"
               value={formData.postDetail?.utilities || ''}
               onChange={e => setFormData(prev => ({ ...prev, postDetail: { ...prev.postDetail, utilities: e.target.value } }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="">Select</option>
               <option value="included">Included</option>
@@ -299,12 +311,13 @@ const EditPost = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Pet Policy</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Pet Policy</label>
             <select
               name="pet"
               value={formData.postDetail?.pet || ''}
               onChange={e => setFormData(prev => ({ ...prev, postDetail: { ...prev.postDetail, pet: e.target.value } }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="">Select</option>
               <option value="allowed">Allowed</option>
@@ -314,53 +327,58 @@ const EditPost = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Income Requirement</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Income Requirement</label>
             <input
               type="text"
               name="income"
               value={formData.postDetail?.income || ''}
               onChange={e => setFormData(prev => ({ ...prev, postDetail: { ...prev.postDetail, income: e.target.value } }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Size (sqft)</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Size (sqft)</label>
             <input
               type="text"
               name="size"
               value={formData.postDetail?.size || ''}
               onChange={e => setFormData(prev => ({ ...prev, postDetail: { ...prev.postDetail, size: e.target.value } }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nearby School</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Nearby School</label>
             <input
               type="text"
               name="school"
               value={formData.postDetail?.school || ''}
               onChange={e => setFormData(prev => ({ ...prev, postDetail: { ...prev.postDetail, school: e.target.value } }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nearby Bus</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Nearby Bus</label>
             <input
               type="text"
               name="bus"
               value={formData.postDetail?.bus || ''}
               onChange={e => setFormData(prev => ({ ...prev, postDetail: { ...prev.postDetail, bus: e.target.value } }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nearby Restaurant</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Nearby Restaurant</label>
             <input
               type="text"
               name="restaurant"
               value={formData.postDetail?.restaurant || ''}
               onChange={e => setFormData(prev => ({ ...prev, postDetail: { ...prev.postDetail, restaurant: e.target.value } }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
         </div>
@@ -368,13 +386,15 @@ const EditPost = () => {
           <button
             type="button"
             onClick={() => navigate(`/posts/${id}`)}
-            className="mr-4 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+            className="mr-4 px-4 py-2 rounded-md hover:opacity-90 transition-colors"
+            style={{ background: 'var(--text-light)', color: '#fff', cursor: 'pointer' }}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 rounded-md hover:opacity-90 transition-colors"
+            style={{ background: 'var(--theme-accent)', color: 'white', cursor: 'pointer' }}
             disabled={loading}
           >
             {loading ? 'Saving...' : 'Save Changes'}

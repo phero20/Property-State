@@ -28,8 +28,8 @@ const userSchema = new mongoose.Schema({
   sentMessages: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Message' }],
   conversationsAsUser1: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' }],
   conversationsAsUser2: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' }],
-  savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }], // Add savedPosts array
-  // Add other fields as needed
+  savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }], 
+
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

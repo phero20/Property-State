@@ -48,85 +48,74 @@ export const createConversation = async (req, res) => {
   try {
     const { userId: otherUserId, propertyId } = req.body;
     const currentUserId = req.user.id;
-    
+
     // Don't allow creating a conversation with yourself
     if (currentUserId === otherUserId) {
       return res.status(400).json({ message: 'Cannot create a conversation with yourself' });
     }
-    
+
     // Check if users exist
     const currentUser = await User.findById(currentUserId);
-    
     if (!currentUser) {
       console.error(`❌ Current user not found: ${currentUserId}`);
       return res.status(404).json({ message: 'Current user not found' });
     }
-    
     const otherUser = await User.findById(otherUserId);
-    
     if (!otherUser) {
       console.error(`❌ Other user not found: ${otherUserId}`);
       return res.status(404).json({ message: 'Other user not found' });
     }
-    
-    // Get only the fields that definitely exist in the User model
-    const userSelect = {
-      id: true,
-      username: true,
-      email: true,
-      avatar: true
-      // fullName is removed
-    };
-    
-    // Check if conversation already exists
+
+    // Check if conversation already exists (regardless of order)
     const propertyFilter = propertyId ? { propertyId } : {};
-    
     const existingConversation = await Chat.findOne({
-      participants: { $all: [currentUserId, otherUserId] },
+      $or: [
+        { user1Id: currentUserId, user2Id: otherUserId },
+        { user1Id: otherUserId, user2Id: currentUserId }
+      ],
       ...propertyFilter
     });
-    
+
     if (existingConversation) {
       // Format response
-      const otherUserData = existingConversation.participants.find(u => u.id.toString() !== currentUserId);
-      
+      const otherUserData = existingConversation.user1Id.toString() === currentUserId
+        ? existingConversation.user2Id
+        : existingConversation.user1Id;
       return res.status(200).json({
         id: existingConversation._id,
         createdAt: existingConversation.createdAt,
         updatedAt: existingConversation.updatedAt,
         propertyId: existingConversation.propertyId,
-        otherUser: otherUserData ? {
-          id: otherUserData.id,
-          username: otherUserData.username,
-          avatar: otherUserData.avatar,
-          email: otherUserData.email,
-        } : null
+        otherUser: {
+          id: otherUserData._id,
+          username: otherUser.username,
+          avatar: otherUser.avatar,
+          email: otherUser.email,
+        }
       });
     }
-    
+
     // Create new conversation
     const newConversation = await Chat.create({
-      participants: [currentUserId, otherUserId],
+      user1Id: currentUserId,
+      user2Id: otherUserId,
       ...(propertyId ? { propertyId } : {}),
       user1Unread: 0,
       user2Unread: 0,
       lastMessage: null
     });
-    
-    // Format response
-    const otherUserData = newConversation.participants.find(u => u.id.toString() !== currentUserId);
-    
+
     res.status(201).json({
       id: newConversation._id,
       createdAt: newConversation.createdAt,
       updatedAt: newConversation.updatedAt,
       propertyId: newConversation.propertyId,
-      otherUser: otherUserData ? {
-        id: otherUserData.id,
-        username: otherUserData.username,
-        avatar: otherUserData.avatar,
-        email: otherUserData.email,
-      } : null
+      otherUser: {
+        id: otherUser._id,
+        username: otherUser.username,
+        avatar: otherUser.avatar,
+        email: otherUser.email,
+      }
     });
   } catch (error) {
     console.error('❌ Error creating conversation:', error);

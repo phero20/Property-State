@@ -3,10 +3,12 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import cloudinary from "../lib/cloudinary.js";
 
+// Register a new user
 export const register = async (req, res) => {
   const userData = req.body.userData || {};
   try {
     // Check if user already exists
+
     const existingUser = await User.findOne({ $or: [ { username: userData.username }, { email: userData.email } ] });
     if (existingUser) {
       return res.status(400).json({
@@ -14,8 +16,6 @@ export const register = async (req, res) => {
         message: existingUser.username === userData.username ? "Username already exists!" : "Email already exists!"
       });
     }
-    // Debug: log the password and hash at registration
-    console.log('REGISTER - Password before hashing:', `[${userData.password}]`);
     // Hash the password using SHA256
     const hashedPassword = crypto.createHash('sha256').update(userData.password).digest('hex');
 
@@ -29,6 +29,7 @@ export const register = async (req, res) => {
         });
         avatarUrl = uploadRes.secure_url;
       } catch (err) {
+        // keep error for cloudinary upload
         console.error('[REGISTER] Cloudinary avatar upload error:', err);
       }
     }
@@ -54,10 +55,13 @@ export const register = async (req, res) => {
       token
     });
   } catch (err) {
+    // error creating user
+    console.error(err);
     res.status(500).json({ success: false, message: "Failed to create user!" });
   }
 };
 
+// Login a user
 export const login = async (req, res) => {
   // Accept both { userData: { ... } } and direct fields in body
   const userData = req.body.userData || req.body;
@@ -77,15 +81,10 @@ export const login = async (req, res) => {
     } else if (username) {
       user = await User.findOne({ username });
     }
-    console.log('loginuser', user);
     if (!user) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
-    // Debug: log the password and hash at login
-    console.log('LOGIN - Password before hashing:', `[${password}]`);
     const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-    console.log('LOGIN - hashed password from request:', hashedPassword);
-    console.log('LOGIN - hashed password from DB:', user.password);
     if (hashedPassword !== user.password) {
       return res.status(401).json({ success: false, message: "wrong password" });
     }
@@ -103,10 +102,13 @@ export const login = async (req, res) => {
       token
     });
   } catch (err) {
+    // error logging in
+    console.error(err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// Logout a user
 export const logout = (req, res) => {
   res.status(200).json({ message: "Logout Successful!" });
 };

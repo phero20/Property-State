@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { postAPI, chatAPI,userAPI } from '../services/api';
 import socketService from '../services/socket';
 import { toast } from 'react-toastify';
+import { FaArrowLeft, FaArrowRight, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCheckCircle, FaRegStar, FaStar, FaBed, FaBath, FaRulerCombined, FaPlug, FaDog, FaMoneyBillWave, FaSchool, FaBus, FaUtensils, FaEdit, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -31,32 +32,23 @@ const PostDetail = () => {
   const loadPost = async () => {
     try {
       setLoading(true);
-      console.log('📥 Loading post details for ID:', id);
-      
-      // Try to get from API first
+      // Removed debug console logs
       try {
         const response = await postAPI.getPost(id);
         setPost(response);
-        console.log('✅ Post loaded from API:', response);
       } catch (apiError) {
-        console.log('🔄 API unavailable, checking localStorage...');
-        
-        // Fallback to localStorage
         const allPosts = JSON.parse(localStorage.getItem('allPosts') || '[]');
         const foundPost = allPosts.find(p => p._id === id);
-        
         if (foundPost) {
           setPost(foundPost);
-          console.log('✅ Post loaded from localStorage:', foundPost);
         } else {
           throw new Error('Post not found');
         }
       }
-      
       setError(null);
     } catch (error) {
-      console.error('❌ Error loading post:', error);
       setError('Post not found');
+      toast.error(`Post not found. ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -87,40 +79,24 @@ const PostDetail = () => {
       navigate('/login', { state: { from: location } });
       return;
     }
-
     try {
-      console.log('🔄 Contacting owner. Post data:', post);
-      
-      // Get the owner ID from the correct location
+      // Removed debug console logs
       const ownerId = post.postedById || (post.ownerInfo && post.ownerInfo.id) || post.userId;
-      
-      console.log('🔄 Owner ID:', ownerId);
-      console.log('🔄 Current user:', user);
-      
-      // Check if IDs are valid
+      // Removed debug console logs
       if (!ownerId) {
-        console.error('❌ Post has no owner ID');
+        toast.error('Cannot contact owner: post has no owner information');
         throw new Error('Cannot contact owner: post has no owner information');
       }
-      
       if (ownerId === user._id) {
         toast.info("This is your own post!");
         return;
       }
-      
-      setContacting(true); // Use contacting instead of loading to avoid UI confusion
+      setContacting(true);
       toast.info("Creating conversation...");
-      
       const response = await chatAPI.createChat(ownerId, post.id);
-      console.log('✅ Conversation created/retrieved:', response.data);
-      
       toast.success("Conversation created! Redirecting to chat...");
-      
-      // Navigate to chat with this conversation selected
       navigate('/chat', { state: { selectedChatId: response.data.id } });
     } catch (error) {
-      console.error('❌ Error creating chat:', error);
-      
       // More specific error messages based on error type
       if (error.response?.status === 404) {
         toast.error('User not found. They may have deleted their account.');
@@ -131,7 +107,7 @@ const PostDetail = () => {
           toast.error('Server error. Please try again later.');
         }
       } else {
-        toast.error('Failed to contact the owner. Please try again later.');
+        toast.error(`Failed to contact the owner. ${error.message}`);
       }
     } finally {
       setContacting(false);
@@ -140,7 +116,7 @@ const PostDetail = () => {
 
   const handleShowContact = () => {
     if (!isAuthenticated) {
-      alert('Please login to view contact information');
+      toast.info('Please login to view contact information');
       navigate('/login');
       return;
     }
@@ -205,14 +181,15 @@ const PostDetail = () => {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="text-center">
-          <div className="text-gray-400 text-6xl mb-4">🏠</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Property Not Found</h2>
-          <p className="text-gray-600 mb-6">The property you're looking for doesn't exist or has been removed.</p>
+          <FaExclamationTriangle className="text-6xl mb-4" style={{ color: 'var(--theme-accent)' }} />
+          <h2 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-main)' }}>Property Not Found</h2>
+          <p className="mb-6" style={{ color: 'var(--text-muted)' }}>The property you're looking for doesn't exist or has been removed.</p>
           <button
             onClick={() => navigate('/posts')}
-            className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors"
+            className="px-6 py-3 rounded-md hover:opacity-90 transition-colors font-semibold flex items-center gap-2"
+            style={{ background: 'var(--theme-accent)', color: 'white', cursor: 'pointer' }}
           >
-            Browse All Properties
+            <FaArrowLeft style={{ color: 'white' }} /> Browse All Properties
           </button>
         </div>
       </div>
@@ -230,170 +207,168 @@ const PostDetail = () => {
       setCurrentImageIndex((prev) => (prev - 1 + post.images.length) % post.images.length);
     }
   };
-   console.log('post detail post', post)
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Back Button */}
       <button
         onClick={() => navigate('/posts')}
-        className="mb-6 flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+        className="mb-6 flex items-center cursor-pointer hover:border-b border-[var(--theme-accent)] transition-colors"
+        style={{ color: 'var(--theme-accent)' }}
       >
         ← Back to Properties
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex flex-col gap-8">
           {/* Image Gallery */}
-          <div className="relative bg-gray-200 rounded-lg overflow-hidden mb-6" style={{ height: '400px' }}>
+          <div
+            className="relative rounded-2xl overflow-hidden mb-4 group shadow-md"
+            style={{ background: 'var(--bg-light-accent)', height: '400px', cursor: post.images && post.images.length > 1 ? 'pointer' : 'default' }}
+            onClick={() => post.images && post.images.length > 1 && nextImage()}
+          >
             {post.images && post.images.length > 0 ? (
               <>
                 <img
                   src={post.images[currentImageIndex]}
                   alt={`${post.title} - Image ${currentImageIndex + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  style={{ background: 'var(--bg-card)' }}
                   onError={(e) => {
                     e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
+                    e.target.nextSibling && (e.target.nextSibling.style.display = 'flex');
                   }}
                 />
-                
                 {/* Navigation Arrows */}
                 {post.images.length > 1 && (
                   <>
                     <button
-                      onClick={prevImage}
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-opacity"
+                      onClick={e => { e.stopPropagation(); prevImage(); }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 flex items-center justify-center rounded-full hover:opacity-80 transition-opacity z-10 shadow-md "
+                      style={{ background: 'var(--theme-accent)', color: 'white', cursor: 'pointer', width: 30, height: 30 }}
+                      tabIndex={0}
                     >
-                      ←
+                      <FaArrowLeft size={15} />
                     </button>
                     <button
-                      onClick={nextImage}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-opacity"
+                      onClick={e => { e.stopPropagation(); nextImage(); }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 flex items-center justify-center rounded-full hover:opacity-80 transition-opacity z-10 shadow-md "
+                      style={{ background: 'var(--theme-accent)', color: 'white', cursor: 'pointer', width: 30, height: 30 }}
+                      tabIndex={0}
                     >
-                      →
+                      <FaArrowRight size={15} />
                     </button>
                   </>
                 )}
-                
                 {/* Image Counter */}
                 {post.images.length > 1 && (
-                  <div className="absolute bottom-4 right-4 bg-black bg-opacity-60 text-white px-3 py-1 rounded text-sm">
+                  <div className="absolute bottom-4 right-4 px-3 py-1 rounded text-sm z-10 shadow-md" style={{ background: 'var(--theme-accent)', color: 'white' }}>
                     {currentImageIndex + 1} / {post.images.length}
                   </div>
                 )}
               </>
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                <span className="text-gray-400 text-6xl">🏠</span>
+              <div className="w-full h-full flex items-center justify-center" style={{ background: 'var(--bg-card)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '3rem' }}>🏠</span>
               </div>
             )}
-            
             {/* Fallback placeholder */}
-            <div className="w-full h-full flex items-center justify-center bg-gray-100" style={{ display: 'none' }}>
-              <span className="text-gray-400 text-6xl">🏠</span>
+            <div className="w-full h-full flex items-center justify-center" style={{ display: 'none', background: 'var(--bg-card)' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '3rem' }}>🏠</span>
             </div>
           </div>
 
           {/* Property Details */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl font-bold text-gray-900">{post.title}</h1>
-              <span className={`px-3 py-1 rounded text-sm font-semibold text-white ${
-                post.type === 'rent' ? 'bg-blue-500' : 'bg-green-500'
-              }`}>
+          <div className="rounded-2xl shadow-md p-6 flex flex-col gap-6" style={{ background: 'var(--bg-card)' }}>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+              <h1 className="text-3xl font-bold" style={{ color: 'var(--text-main)' }}>{post.title}</h1>
+              <span className="px-3 py-1 rounded text-sm font-semibold text-white self-start sm:self-auto" style={{ background: post.type === 'rent' ? 'var(--theme-accent)' : 'var(--hover-theme-accent)' }}>
                 For {post.type === 'rent' ? 'Rent' : 'Sale'}
               </span>
             </div>
 
-            <div className="flex items-center text-gray-600 mb-4">
-              <span className="mr-4">📍 {post.address ? `${post.address}, ` : ''}{post.city}</span>
-              <span className="text-sm">Posted {formatDate(post.createdAt)}</span>
+            <div className="flex flex-wrap items-center text-sm mb-2 gap-2" style={{ color: 'var(--text-muted)' }}>
+              <span className="flex items-center gap-1 mr-4"><FaMapMarkerAlt style={{ color: 'var(--theme-accent)' }} /> {post.address ? `${post.address}, ` : ''}{post.city}</span>
+              <span className="text-xs">Posted {formatDate(post.createdAt)}</span>
             </div>
 
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-3xl font-bold text-blue-600">
+            <div className="flex flex-wrap items-center gap-6 mb-4">
+              <div className="text-3xl font-bold flex items-center gap-2" style={{ color: 'var(--theme-accent)' }}>
                 {formatPrice(post.price)}
-                {post.type === 'rent' && <span className="text-lg font-normal">/month</span>}
+                {post.type === 'rent' && <span className="text-lg font-normal" style={{ color: 'var(--text-muted)' }}>/month</span>}
               </div>
-              
-              <div className="flex space-x-6 text-gray-700">
+              <div className="flex flex-wrap gap-4 text-base" style={{ color: 'var(--text-main)' }}>
                 {post.bedroom > 0 && (
-                  <span className="flex items-center">
-                    🛏️ {post.bedroom} bed{post.bedroom > 1 ? 's' : ''}
-                  </span>
+                  <span className="flex items-center bg-gray-500/40 rounded-md p-1 gap-1">🛏️ {post.bedroom} bed{post.bedroom > 1 ? 's' : ''}</span>
                 )}
                 {post.bathroom > 0 && (
-                  <span className="flex items-center">
-                    🚿 {post.bathroom} bath{post.bathroom > 1 ? 's' : ''}
-                  </span>
+                   <span className="flex items-center bg-gray-500/40 rounded-md p-1 gap-1">🛁 {post.bathroom} bath{post.bathroom > 1 ? 's' : ''}</span>
                 )}
                 {post.postDetail?.size && (
-                  <span className="flex items-center">
-                    📐 {post.postDetail.size} sq ft
-                  </span>
+                   <span className="flex items-center bg-gray-500/40 rounded-md p-1 gap-1">📐 {post.postDetail.size} sq ft</span>
+                )}
+                {post.property && (
+                   <span className="flex items-center bg-gray-500/40 rounded-md p-1 gap-1">🏬 {post.property}</span>
                 )}
               </div>
             </div>
 
             {/* Property Description */}
             {post.postDetail?.desc && (
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold mb-3">Description</h3>
-                <p className="text-gray-700 leading-relaxed">{post.postDetail.desc}</p>
+              <div>
+                <h3 className="text-xl font-semibold mb-2 flex items-center gap-2 flex-wrap break-words" style={{ color: 'var(--text-main)' }}><FaRegStar style={{ color: 'var(--theme-accent)' }} />
+                <span className="break-words">Description</span>
+                </h3>
+                <p className='break-words w-full' style={{ color: 'var(--text-muted)' }}>{post.postDetail.desc}</p>
               </div>
             )}
 
             {/* Property Features */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {post.postDetail?.utilities && (
                 <div>
-                  <h4 className="font-semibold mb-2">🔌 Utilities</h4>
-                  <p className="text-gray-700">{post.postDetail.utilities}</p>
+                  <h4 className="font-semibold mb-1 flex items-center gap-2" style={{ color: 'var(--text-main)' }}><span>🔌</span> Utilities</h4>
+                  <p style={{ color: 'var(--text-muted)' }}>{post.postDetail.utilities}</p>
                 </div>
               )}
-              
               {post.postDetail?.pet && (
                 <div>
-                  <h4 className="font-semibold mb-2">🐕 Pet Policy</h4>
-                  <p className="text-gray-700">{post.postDetail.pet}</p>
+                  <h4 className="font-semibold mb-1 flex items-center gap-2" style={{ color: 'var(--text-main)' }}><span>🐶</span> Pet Policy</h4>
+                  <p style={{ color: 'var(--text-muted)' }}>{post.postDetail.pet}</p>
                 </div>
               )}
-              
               {post.postDetail?.income && (
                 <div>
-                  <h4 className="font-semibold mb-2">💰 Income Requirement</h4>
-                  <p className="text-gray-700">{post.postDetail.income}</p>
+                  <h4 className="font-semibold mb-1 flex items-center gap-2" style={{ color: 'var(--text-main)' }}><span>💵</span> Income Requirement</h4>
+                  <p style={{ color: 'var(--text-muted)' }}>{post.postDetail.income}</p>
                 </div>
               )}
             </div>
 
             {/* Nearby Amenities */}
             {(post.postDetail?.school || post.postDetail?.bus || post.postDetail?.restaurant) && (
-              <div className="mt-6">
-                <h3 className="text-xl font-semibold mb-3">Nearby Amenities</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <h3 className="text-xl font-semibold mb-2 flex items-center gap-2" style={{ color: 'var(--text-main)' }}><span>📍</span> Nearby Amenities</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {post.postDetail.school && (
-                    <div className="text-center p-3 bg-gray-50 rounded">
-                      <div className="text-2xl mb-1">🏫</div>
-                      <div className="font-medium">Schools</div>
-                      <div className="text-sm text-gray-600">{post.postDetail.school} Minutes</div>
+                    <div className="text-center p-3 rounded flex flex-col items-center gap-1" style={{ background: 'var(--bg-light-accent)' }}>
+                      <span style={{ fontSize: '2rem' }}>🏫</span>
+                      <div className="font-medium" style={{ color: 'var(--text-main)' }}>Schools</div>
+                      <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{post.postDetail.school} Minutes</div>
                     </div>
                   )}
-                  
                   {post.postDetail.bus && (
-                    <div className="text-center p-3 bg-gray-50 rounded">
-                      <div className="text-2xl mb-1">🚌</div>
-                      <div className="font-medium">Public Transport</div>
-                      <div className="text-sm text-gray-600">{post.postDetail.bus} Minutes</div>
+                    <div className="text-center p-3 rounded flex flex-col items-center gap-1" style={{ background: 'var(--bg-light-accent)' }}>
+                      <span style={{ fontSize: '2rem' }}>🚌</span>
+                      <div className="font-medium" style={{ color: 'var(--text-main)' }}>Public Transport</div>
+                      <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{post.postDetail.bus} Minutes</div>
                     </div>
                   )}
-                  
                   {post.postDetail.restaurant && (
-                    <div className="text-center p-3 bg-gray-50 rounded">
-                      <div className="text-2xl mb-1">🍽️</div>
-                      <div className="font-medium">Restaurants</div>
-                      <div className="text-sm text-gray-600">{post.postDetail.restaurant} Minutes</div>
+                    <div className="text-center p-3 rounded flex flex-col items-center gap-1" style={{ background: 'var(--bg-light-accent)' }}>
+                      <span style={{ fontSize: '2rem' }}>🍽️</span>
+                      <div className="font-medium" style={{ color: 'var(--text-main)' }}>Restaurants</div>
+                      <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{post.postDetail.restaurant} Minutes</div>
                     </div>
                   )}
                 </div>
@@ -401,15 +376,14 @@ const PostDetail = () => {
             )}
           </div>
         </div>
-
         {/* Sidebar */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 flex flex-col gap-8">
           {/* Owner Information */}
           {post.ownerInfo && (
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h3 className="text-xl font-semibold mb-4">Property Owner</h3>
+            <div className="rounded-2xl shadow-md p-6 mb-6 flex flex-col gap-4" style={{ background: 'var(--bg-card)' }}>
+              <h3 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-main)' }}>🏠 Property Owner</h3>
               <div className="flex items-center space-x-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-semibold">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-semibold" style={{ background: 'var(--theme-accent)' }}>
                   {post.ownerInfo.avatar ? (
                     <img 
                       src={post.ownerInfo.avatar} 
@@ -417,25 +391,25 @@ const PostDetail = () => {
                       className="w-12 h-12 rounded-full object-cover"
                     />
                   ) : (
-                    (post.ownerInfo.fullName || post.ownerInfo.username || 'U').charAt(0).toUpperCase()
+                    <span role="img" aria-label="User">👤</span>
                   )}
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h4 className="font-semibold text-gray-900">
+                    <h4 className="font-semibold" style={{ color: 'var(--text-main)' }}>
                       {post.ownerInfo.fullName || post.ownerInfo.username}
                     </h4>
                     {post.ownerInfo.verified && (
-                      <span className="text-green-600 text-sm">✅</span>
+                      <span className="text-green-600 text-sm" title="Verified">✅</span>
                     )}
                   </div>
-                  <p className="text-gray-600 text-sm">@{post.ownerInfo.username}</p>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>@{post.ownerInfo.username}</p>
                   {post.ownerInfo.location && (
-                    <p className="text-gray-500 text-sm">📍 {post.ownerInfo.location}</p>
+                    <p className="text-sm flex mt-1 gap-1 items-center" style={{ color: 'var(--text-muted)' }}><FaMapMarkerAlt style={{ color: 'var(--theme-accent)' }} /> {post.ownerInfo.location}</p>
                   )}
                 </div>
               </div>
-              <div className="text-sm text-gray-600 mb-4">
+              <div className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
                 <p>Member since {formatDate(post.ownerInfo.memberSince)}</p>
                 {post.ownerInfo.userType && (
                   <p className="capitalize">{post.ownerInfo.userType} account</p>
@@ -447,7 +421,8 @@ const PostDetail = () => {
                 <div className="flex flex-col space-y-2 mb-4">
                   <button
                     onClick={() => navigate(`/edit-post/${post._id}`)}
-                    className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                    className="w-full px-4 py-2 rounded-md hover:opacity-90 text-white transition-colors flex items-center justify-center gap-2"
+                    style={{ background: 'var(--theme-accent)', cursor: 'pointer' }}
                   >
                     ✏️ Edit Post
                   </button>
@@ -463,7 +438,8 @@ const PostDetail = () => {
                         }
                       }
                     }}
-                    className="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                    className="w-full px-4 py-2 rounded-md text-white hover:opacity-90 transition-colors flex items-center justify-center gap-2"
+                    style={{ background: '#dc2626', cursor: 'pointer' }}
                   >
                     🗑️ Delete Post
                   </button>
@@ -475,11 +451,13 @@ const PostDetail = () => {
                 <button
                   onClick={handleContactOwner}
                   disabled={!isAuthenticated || post.ownerInfo.id === user?._id}
-                  className="w-full bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  className="w-full px-4 py-3 rounded-md hover:opacity-90 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  style={{ background: 'var(--theme-accent)', color: 'white', cursor: 'pointer' }}
                 >
+                  <FaEnvelope style={{ color: 'white' }} />
                   {!isAuthenticated ? 'Login to Contact' : 
                    post.ownerInfo.id === user?._id ? 'Your Property' : 
-                   '💬 Send Message'}
+                   'Send Message'}
                 </button>
 
                 {/* Save/Unsave Post Button */}
@@ -487,9 +465,10 @@ const PostDetail = () => {
                   <button
                     onClick={handleSaveUnsave}
                     disabled={!isAuthenticated}
-                    className={`w-full ${isSaved ? 'bg-gray-400 hover:bg-gray-500' : 'bg-yellow-400 hover:bg-yellow-500'} text-white px-4 py-3 rounded-md disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors`}
+                    className={`w-full px-4 py-3 rounded-md hover:opacity-90 disabled:opacity-60 transition-colors flex items-center justify-center gap-2 ${isSaved ? 'bg-[#797979] text-zinc-900' : 'bg-[var(--theme-accent)] text-white'}`}
+                    style={{ cursor: 'pointer' }}
                   >
-                    {isSaved ? '⭐ Unsave Property' : '⭐ Save Property'}
+                    {isSaved ? '⭐ Unsave Property' : '🌟 Save Property'}
                   </button>
                 )}
 
@@ -497,21 +476,22 @@ const PostDetail = () => {
                   <button
                     onClick={handleShowContact}
                     disabled={!isAuthenticated}
-                    className="w-full bg-gray-100 text-gray-700 px-4 py-3 rounded-md hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full px-4 py-3 rounded-md hover:opacity-90 disabled:opacity-60 transition-colors flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-600 text-slate-900 dark:text-slate-300"
+                    style={{ cursor: 'pointer' }}
                   >
-                    📞 Show Contact Info
+                    <FaPhone style={{ color: 'rgb(5,150,105)' }} /> Show Contact Info
                   </button>
                 )}
               </div>
 
               {/* Contact Information */}
               {showContactInfo && post.ownerInfo.showContactInfo && (
-                <div className="mt-4 p-3 bg-gray-50 rounded border-t">
-                  <h5 className="font-semibold mb-2">Contact Information</h5>
+                <div className="mt-4 p-4 rounded-lg flex flex-col gap-2 bg-slate-200 dark:bg-slate-600 text-slate-900 dark:text-slate-300">
+                  <h5 className="font-semibold mb-2 flex items-center gap-2"><FaUser className="inline-block text-[var(--theme-accent)]" />Contact Information</h5>
                   <div className="space-y-1 text-sm">
-                    <p>📧 {post.ownerInfo.email}</p>
+                    <p className="flex items-center gap-2"><FaEnvelope className="inline-block text-[var(--theme-accent)]" />{post.ownerInfo.email}</p>
                     {post.ownerInfo.phone && (
-                      <p>📱 {post.ownerInfo.phone}</p>
+                      <p className="flex items-center gap-2"><FaPhone className="inline-block text-[var(--theme-accent)]" />{post.ownerInfo.phone}</p>
                     )}
                   </div>
                 </div>
@@ -520,13 +500,14 @@ const PostDetail = () => {
           )}
 
           {/* Map placeholder */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-4">Location</h3>
-            <div className="bg-gray-100 h-48 rounded flex items-center justify-center">
-              <span className="text-gray-500">🗺️ Map coming soon</span>
+          <div className="rounded-2xl shadow-md p-6" style={{ background: 'var(--bg-card)' }}>
+            <h3 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-main)' }}>Location</h3>
+            <div className="h-48 rounded flex items-center justify-center bg-slate-100">
+              <FaMapMarkerAlt style={{ color: 'var(--theme-accent)', fontSize: '2rem' }} />
+              <span className="ml-2 text-slate-500">Map coming soon</span>
             </div>
-            <p className="text-sm text-gray-600 mt-2">
-              📍 {post.address ? `${post.address}, ` : ''}{post.city}
+            <p className="text-sm mt-2 flex items-center gap-2 text-slate-500">
+              <FaMapMarkerAlt style={{ color: 'var(--theme-accent)' }} /> {post.address ? `${post.address}, ` : ''}{post.city}
             </p>
           </div>
         </div>

@@ -1,17 +1,17 @@
 import axios from 'axios';
-
+import { API_URL } from "../utils/constants";
 // Use the VITE_API_URL environment variable
-const API_URL = 'http://localhost:4000/api';
+// const API_URL = 'http://localhost:4000/api';
+
 
 export const login = async (credentials) => {
-  console.log('🔐 Login attempt...');
+ 
   
   // Determine which field to use (email or username)
   const isEmail = !!credentials.email || (credentials.inputType === 'email');
   const loginField = isEmail ? 'email' : 'username';
   const loginValue = credentials[loginField] || credentials.input;
   
-  console.log(`🔑 Attempting login with ${loginField}: ${loginValue}`);
   
   try {
     const response = await axios.post(`${API_URL}/auth/login`, { userData: credentials }, {

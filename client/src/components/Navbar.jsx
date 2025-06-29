@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../services/api';
 
@@ -47,92 +47,139 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-lg">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center py-4">
-          <Link to="/" className="text-2xl font-bold text-blue-600" onClick={closeMenu}>
-            Property State
+    <nav className="border-b fixed z-50 w-full border-slate-200 dark:border-slate-950 backdrop-blur-md transition-colors duration-300" style={{ background: 'var(--bg-main)' }}>
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center py-3">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white tracking-tight hover:text-[var(--theme-accent)] dark:hover:text-[var(--theme-accent)] transition-colors focus:outline-none"
+            onClick={closeMenu}
+            style={{ letterSpacing: '0.01em' }}
+          >
+            <span className="text-2xl mr-1">🏠</span>
+            <span>Property State</span>
           </Link>
-          
+
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-6">
-            <Link to="/posts" className="text-gray-700 hover:text-blue-600 transition-colors">
+          <div className="hidden md:flex items-center lg:space-x-6 xl:space-x-8">
+            <NavLink
+              to="/posts"
+              className={({ isActive }) =>
+                `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors 
+                ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} 
+                after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 
+                ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'}`.replace(/\n/g, ' ')
+              }
+              end
+            >
               Properties
-            </Link>
-            
+            </NavLink>
             {isAuthenticated ? (
               <>
-                <Link
+                <NavLink
                   to="/add-post"
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                  className={({ isActive }) =>
+                    `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-all duration-500 text-slate-700 dark:text-slate-100
+                    after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5
+                    ${isActive ? 'bg-transparent after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] text-white after:transition-transform after:origin-left hover:after:scale-x-100'}
+                    min-w-[130px] text-center bg-[var(--theme-accent)]  text-slate-700 dark:text-white rounded-md hover:scale-105 hover:bg-[var(--hover-theme-accent)] transition-all duration-500`
+                  }
                   onClick={handleAddProperty}
+                  style={{ minWidth: '130px', textAlign: 'center' }}
                 >
                   + Add Property
-                </Link>
-                <Link to="/chat" className="text-gray-700 hover:text-blue-600 transition-colors relative">
+                </NavLink>
+                <NavLink
+                  to="/chat"
+                  className={({ isActive }) =>
+                    `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors \
+                    ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} \
+                    after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 \
+                    ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'}`
+                  }
+                >
                   Messages
                   {notifications > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    <span className="absolute top-1 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center border border-white dark:border-slate-900 shadow-sm">
                       {notifications}
                     </span>
                   )}
-                </Link>
-                <Link to="/profile" className="text-gray-700 hover:text-blue-600 transition-colors">
+                </NavLink>
+                <NavLink
+                  to="/profile"
+                  className={({ isActive }) =>
+                    `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors \
+                    ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} \
+                    after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 \
+                    ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'}
+                    `
+                  }
+                >
                   Profile
-                </Link>
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+                </NavLink>
+                <div className="flex items-center space-x-2 ml-2">
+                  <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 text-base font-semibold border border-slate-300 dark:border-slate-600 shadow-sm overflow-hidden">
                     {user?.avatar ? (
-                      <img 
-                        src={user.avatar} 
-                        alt={user.username || 'User'} 
-                        className="w-8 h-8 rounded-full object-cover" 
+                      <img
+                        src={user.avatar}
+                        alt={user.username || 'User'}
+                        className="w-9 h-9 rounded-full object-cover border border-slate-300 dark:border-slate-600"
                       />
                     ) : (
                       (user?.username || user?.fullName || 'U')?.charAt(0).toUpperCase()
                     )}
                   </div>
-                  <span className="text-gray-700">
-                    Hi, {user?.fullName || user?.username || 'User'}
+                  <span className="text-slate-900 dark:text-white font-medium text-base">
+                    {user?.fullName || user?.username || 'User'}
                   </span>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
+                  className="ml-2 min-w-[90px] text-center px-4 py-1.5 bg-red-600 dark:bg-red-700 hover:scale-105 text-white rounded-md font-semibold border border-red-700 hover:bg-red-700 dark:hover:bg-red-800 transition-all duration-500 focus:outline-none cursor-pointer"
+                  type="button"
+                  style={{ minWidth: '90px' }}
                 >
                   Logout
                 </button>
               </>
             ) : (
               <>
-                <Link
+                <NavLink
                   to="/login"
-                  className="text-gray-700 hover:text-blue-600 transition-colors"
+                  className={({ isActive }) =>
+                    `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors \
+                    ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} \
+                    after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 \
+                    ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'}
+                    `
+                  }
                 >
                   Login
-                </Link>
-                <Link
+                </NavLink>
+                <NavLink
                   to="/register"
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                  className="min-w-[110px] text-center px-4 py-2 bg-[var(--theme-accent)] text-white rounded-md font-semibold shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] transition-colors cursor-pointer"
+                  style={{ minWidth: '110px' }}
                 >
                   Register
-                </Link>
+                </NavLink>
               </>
             )}
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden text-gray-700 hover:text-blue-600 focus:outline-none"
+            className="md:hidden text-slate-900 dark:text-white hover:text-[var(--theme-accent)] dark:hover:text-[var(--theme-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] rounded p-2 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 transition cursor-pointer"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle mobile menu"
+            type="button"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} 
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
               />
             </svg>
           </button>
@@ -140,88 +187,116 @@ const Navbar = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t bg-white">
-            <div className="flex flex-col space-y-2">
-              <Link 
-                to="/posts" 
-                className="text-gray-700 hover:text-blue-600 py-2 px-2 rounded hover:bg-gray-50 transition-colors"
+          <div className="md:hidden py-4 mb-4 mt-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur rounded-xl shadow animate-fade-in transition-colors duration-300">
+            <div className="flex flex-col space-y-3 px-2">
+              <NavLink
+                to="/posts"
+                className={({ isActive }) =>
+                  `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors \
+                  ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} \
+                  after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 \
+                  ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'}
+                  `
+                }
                 onClick={closeMenu}
               >
                 Properties
-              </Link>
-              
+              </NavLink>
               {isAuthenticated ? (
                 <>
                   {/* User Info */}
-                  <div className="flex items-center space-x-3 py-2 px-2 bg-blue-50 rounded mb-2">
-                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                  <div className="flex items-center space-x-3 py-2 px-2 bg-slate-100 dark:bg-slate-800 rounded-lg mb-2 border border-slate-200 dark:border-slate-700">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 font-semibold border border-slate-300 dark:border-slate-600 overflow-hidden">
                       {user?.avatar ? (
-                        <img 
-                          src={user.avatar} 
-                          alt={user.username || 'User'} 
-                          className="w-10 h-10 rounded-full object-cover" 
+                        <img
+                          src={user.avatar}
+                          alt={user.username || 'User'}
+                          className="w-10 h-10 rounded-full object-cover border border-slate-300 dark:border-slate-600"
                         />
                       ) : (
                         (user?.username || user?.fullName || 'U')?.charAt(0).toUpperCase()
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">
+                      <p className="font-semibold text-slate-900 dark:text-white text-base">
                         {user?.fullName || user?.username || 'User'}
                       </p>
-                      <p className="text-sm text-gray-600">{user?.email}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{user?.email}</p>
                     </div>
                   </div>
-                  
-                  <Link 
-                    to="/add-post" 
-                    className="block py-2 text-gray-700 hover:text-blue-600" 
+                  <NavLink
+                    to="/add-post"
+                    className={({ isActive }) =>
+                      `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors \
+                      ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} \
+                      after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 \
+                      ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'}
+                      `
+                    }
                     onClick={handleAddProperty}
                   >
                     + Add Property
-                  </Link>
-                  <Link 
-                    to="/chat" 
-                    className="text-gray-700 hover:text-blue-600 py-2 px-2 rounded hover:bg-gray-50 transition-colors flex items-center justify-between"
+                  </NavLink>
+                  <NavLink
+                    to="/chat"
+                    className={({ isActive }) =>
+                      `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors \
+                      ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} \
+                      after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 \
+                      ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'} flex items-center justify-between`
+                    }
                     onClick={closeMenu}
                   >
                     <span>Messages</span>
                     {notifications > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center border border-white dark:border-slate-900">
                         {notifications}
                       </span>
                     )}
-                  </Link>
-                  <Link 
-                    to="/profile" 
-                    className="text-gray-700 hover:text-blue-600 py-2 px-2 rounded hover:bg-gray-50 transition-colors"
+                  </NavLink>
+                  <NavLink
+                    to="/profile"
+                    className={({ isActive }) =>
+                      `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors \
+                      ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} \
+                      after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 \
+                      ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'}
+                      `
+                    }
                     onClick={closeMenu}
                   >
                     Profile
-                  </Link>
+                  </NavLink>
                   <button
                     onClick={handleLogout}
-                    className="text-left text-red-600 py-2 px-2 rounded hover:bg-red-50 transition-colors"
+                    className="text-left w-full py-2 px-3 bg-red-600 dark:bg-red-700 text-white rounded-md font-semibold border border-red-700 hover:bg-red-700 dark:hover:bg-red-800 transition mt-2 focus:outline-none focus:ring-2 focus:ring-red-400 dark:focus:ring-red-700 cursor-pointer"
+                    type="button"
                   >
                     Logout
                   </button>
                 </>
               ) : (
                 <>
-                  <Link 
-                    to="/login" 
-                    className="text-gray-700 hover:text-blue-600 py-2 px-2 rounded hover:bg-gray-50 transition-colors"
+                  <NavLink
+                    to="/login"
+                    className={({ isActive }) =>
+                      `relative font-medium px-3 py-2 focus:outline-none cursor-pointer transition-colors \
+                      ${isActive ? 'text-[var(--theme-accent)]' : 'text-slate-700 dark:text-slate-100'} \
+                      after:content-[''] after:block after:absolute after:left-0 after:bottom-0 after:w-full after:h-0.5 \
+                      ${isActive ? 'after:scale-x-100 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left after:opacity-100' : 'after:scale-x-0 after:bg-[var(--theme-accent)] after:transition-transform after:origin-left hover:after:scale-x-100'}
+                      `
+                    }
                     onClick={closeMenu}
                   >
                     Login
-                  </Link>
-                  <Link 
-                    to="/register" 
-                    className="text-blue-600 hover:text-blue-800 py-2 px-2 rounded hover:bg-blue-50 font-medium transition-colors"
+                  </NavLink>
+                  <NavLink
+                    to="/register"
+                    className="py-2 px-3 bg-[var(--theme-accent)] text-white rounded-md font-semibold shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] transition-colors cursor-pointer"
                     onClick={closeMenu}
                   >
                     Register
-                  </Link>
+                  </NavLink>
                 </>
               )}
             </div>
@@ -231,5 +306,10 @@ const Navbar = () => {
     </nav>
   );
 };
+
+// Add the CSS variable to index.css:
+// :root {
+//   --theme-accent: rgb(16 185 129); /* Tailwind emerald-500 */
+// }
 
 export default Navbar;

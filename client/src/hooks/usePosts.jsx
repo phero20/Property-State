@@ -25,7 +25,6 @@ export const usePosts = () => {
         : [];
       
       setPosts({ allPosts, myPosts });
-      console.log('✅ Posts loaded from API:', allPosts.length, 'posts');
     } catch (error) {
       console.error('❌ Error loading posts from API:', error);
       setError('Failed to load properties. Please try again later.');

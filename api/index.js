@@ -93,7 +93,6 @@ app.use(cors({
       return callback(new Error('Not allowed by CORS'), false);
     }
   },
-  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -208,7 +207,7 @@ mongoose.connection.on('disconnected', () => {
   console.log('❗ MongoDB connection disconnected');
 });
 
-const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://mdferozahmed27156:feroz326@cluster0.fdjcwh6.mongodb.net/property?retryWrites=true&w=majority&appName=Cluster0';
+const mongoURI = process.env.MONGODB_URI
 
 mongoose.connect(mongoURI, {
   useNewUrlParser: true,

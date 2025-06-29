@@ -1,5 +1,8 @@
 import { Server } from "socket.io";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
+import Message from "../api/models/Message.js";
+import Chat from "../api/models/Chat.js";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -11,7 +14,6 @@ const PORT = process.env.PORT || 4001;
 // Allow multiple client origins
 const allowedOrigins = [
   CLIENT_URL,
-  "https://property-state-1.onrender.com",
   "http://localhost:5173",
 ];
 
@@ -117,31 +119,54 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const receiver = getUser(receiverId);
-
-    if (receiver) {
-      console.log(
-        `✅ Receiver ${receiverId} is online with socket ${receiver.socketId}`
-      );
-
-      // Send message to receiver
-      io.to(receiver.socketId).emit("getMessage", data);
-    } else {
-      console.log(
-        `❌ Receiver ${receiverId} is offline, message will be delivered when they connect`
-      );
-
-      // Store pending messages for offline users
-      if (!global.pendingMessages) {
-        global.pendingMessages = {};
+    // Save message to DB
+    try {
+      // Find the chat
+      const chat = await Chat.findById(data.chatId);
+      if (!chat) {
+        console.warn(`❌ Chat not found: ${data.chatId}`);
+        return;
       }
-
-      if (!global.pendingMessages[receiverId]) {
-        global.pendingMessages[receiverId] = [];
+      // Check if sender is a participant
+      if (![chat.user1Id.toString(), chat.user2Id.toString()].includes(data.senderId)) {
+        console.warn(`❌ Sender is not a participant in chat ${data.chatId}`);
+        return;
       }
-
-      global.pendingMessages[receiverId].push(data);
-      console.log(`📫 Message stored for offline user ${receiverId}`);
+      // Create and save the message
+      const newMessage = await Message.create({
+        content: data.content,
+        senderId: data.senderId,
+        conversationId: data.chatId,
+      });
+      // Add message to chat
+      chat.messages.push(newMessage._id);
+      chat.lastMessage = data.content;
+      await chat.save();
+      // Emit to receiver if online
+      const receiver = getUser(receiverId);
+      if (receiver) {
+        io.to(receiver.socketId).emit("getMessage", {
+          ...data,
+          id: newMessage._id,
+          createdAt: newMessage.createdAt,
+        });
+      } else {
+        // Store pending messages for offline users
+        if (!global.pendingMessages) {
+          global.pendingMessages = {};
+        }
+        if (!global.pendingMessages[receiverId]) {
+          global.pendingMessages[receiverId] = [];
+        }
+        global.pendingMessages[receiverId].push({
+          ...data,
+          id: newMessage._id,
+          createdAt: newMessage.createdAt,
+        });
+        console.log(`📫 Message stored for offline user ${receiverId}`);
+      }
+    } catch (err) {
+      console.error("❌ Error saving message to DB:", err);
     }
   });
 

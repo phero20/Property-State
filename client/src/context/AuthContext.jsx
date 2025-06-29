@@ -50,7 +50,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (credentials) => {
-    console.log("conetc")
     setLoading(true);
     const result = await authService.login(credentials);
     if (result.success) {

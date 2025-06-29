@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
+import { toast } from '../utils/toast';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -37,35 +37,32 @@ const Login = () => {
         password: formData.password
       };
 
-      console.log('🔐 Login attempt with:', credentials);
-
       const response = await login(credentials);
       
       if (response.success) {
-        console.log('✅ Login successful, redirecting...');
+        toast.success('Login successful! Redirecting...');
         navigate('/posts');
       }
     } catch (error) {
-      console.error('❌ Login failed:', error);
-      alert(error.response?.data?.message || 'Login failed. Please check your credentials.');
+      toast.error(error.response?.data?.message || `Login failed. ${error.message || 'Please check your credentials.'}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex flex-col justify-center py-12 px-6 lg:px-8" style={{ background: 'var(--bg-main)', color: 'var(--text-main)' }}>
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold" style={{ color: 'var(--theme-accent)' }}>
           Sign in to your account
         </h2>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="py-8 px-4 shadow rounded-lg sm:px-10" style={{ background: 'var(--bg-card)' }}>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="emailOrUsername" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="emailOrUsername" className="block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
                 Email or Username
               </label>
               <input
@@ -75,13 +72,14 @@ const Login = () => {
                 required
                 value={formData.emailOrUsername}
                 onChange={handleChange}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-[var(--theme-accent)]"
+                style={{ background: 'var(--bg-main)', color: 'var(--text-main)', borderColor: 'var(--text-light)', placeholderColor: 'var(--text-muted)' }}
                 placeholder="Enter your email or username"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
                 Password
               </label>
               <input
@@ -91,7 +89,8 @@ const Login = () => {
                 required
                 value={formData.password}
                 onChange={handleChange}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-[var(--theme-accent)]"
+                style={{ background: 'var(--bg-main)', color: 'var(--text-main)', borderColor: 'var(--text-light)', placeholderColor: 'var(--text-muted)' }}
                 placeholder="Enter your password"
               />
             </div>
@@ -104,17 +103,19 @@ const Login = () => {
                   type="checkbox"
                   checked={formData.rememberMe}
                   onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 rounded focus:ring-2 focus:ring-[var(--theme-accent)]"
+                  style={{ accentColor: 'var(--theme-accent)' }}
                 />
-                <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-900">
+                <label htmlFor="rememberMe" className="ml-2 block text-sm" style={{ color: 'var(--text-main)' }}>
                   Remember me
                 </label>
               </div>
 
               <div className="text-sm">
                 <Link
-                  to="/forgot-password"
-                  className="font-medium text-blue-600 hover:text-blue-500"
+                  to="/login"
+                  className="font-medium underline"
+                  style={{ color: 'var(--theme-accent)' }}
                 >
                   Forgot your password?
                 </Link>
@@ -125,11 +126,12 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:ring-offset-2 disabled:opacity-50"
+                style={{ background: 'var(--theme-accent)', color: 'white', cursor: loading ? 'not-allowed' : 'pointer' }}
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 mr-2" style={{ borderColor: 'var(--text-light)' }}></div>
                     Signing in...
                   </>
                 ) : (
@@ -139,13 +141,13 @@ const Login = () => {
             </div>
           </form>
 
-
           <div className="mt-6">
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               Don't have an account?{' '}
               <Link
                 to="/register"
-                className="font-medium text-blue-600 hover:text-blue-500"
+                className="font-medium underline"
+                style={{ color: 'var(--theme-accent)' }}
               >
                 Sign up
               </Link>

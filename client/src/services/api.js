@@ -103,11 +103,11 @@ export const authAPI = {
       });
     } else if (userData.avatar && typeof userData.avatar === 'string' && userData.avatar.startsWith('data:image/')) {
       // Already base64, send as is
-      console.log('[authAPI.register] Sending avatar as base64 string:', userData.avatar.substring(0, 100));
+;
       return api.post("/auth/register", { userData });
     } else {
       // No avatar or not an image, send as is
-      console.log('[authAPI.register] No avatar or not an image, sending as is:', userData.avatar);
+    
       return api.post("/auth/register", { userData });
     }
   },
@@ -121,13 +121,10 @@ export const userAPI = {
     try {
       return await api.get("/user/profile");
     } catch (error) {
-      console.error("❌ Error fetching profile:", error);
       throw error;
     }
   },
-
   updateProfile: async (profileData) => {
-    console.log("update pofle", profileData);
     try {
       const userData = localStorage.getItem("user");
       if (!userData) throw new Error("No user data found");
@@ -136,53 +133,39 @@ export const userAPI = {
       if (!userId) throw new Error("No user ID found");
       const response = await api.put(`/users/${userId}`, profileData);
       if (response.data.success) {
-        console.log("service", response);
         return response.data;
       }
       else{
-        alert("Profile update failed. Please try again.");
         return false;
       }
     } catch (error) {
-      console.error("❌ Error updating profile:", error);
       throw error;
     }
   },
-
   getNotifications: async () => {
     try {
-      const response = await api.get("/users/notifications"); // Notice 'users' plural
+      const response = await api.get("/users/notifications");
       return response;
     } catch (error) {
-      console.error("❌ Error fetching notifications:", error);
       throw error;
     }
   },
-
   markNotificationAsRead: async (notificationId) => {
     try {
       return await api.put(`/user/notifications/${notificationId}/read`);
     } catch (error) {
-      console.error("❌ Error marking notification as read:", error);
       throw error;
     }
   },
-
   getUserStats: async () => {
     try {
-      console.log("📊 Fetching user stats...");
       return await api.get("/users/stats");
     } catch (error) {
-      console.error("❌ Error fetching user stats:", error);
       throw error;
     }
   },
-
-  // Add missing profile posts function
   getProfilePosts: async (userId = null) => {
     try {
-      console.log("📥 Getting profile posts for user:", userId);
-            
       // If no userId provided, get current user's posts
       if (!userId) {
         const userData = localStorage.getItem("user");
@@ -195,55 +178,47 @@ export const userAPI = {
       }
 
       // Try to get from API first
-       console.log('user',userId)
       const response = await api.get(`/users/${userId}/posts`);
-      console.log(
-        "✅ Profile posts loaded from API:",
-        response.data?.length || 0
-      );
       return response;
     } catch (error) {
-      console.error("❌ Error getting profile posts:", error);
       throw error;
     }
   },
-
-  // Add function to get user's saved posts
   getSavedPosts: async () => {
     try {
       return await api.get("/users/saved-posts");
     } catch (error) {
-      console.error("❌ Error fetching saved posts:", error);
       throw error;
     }
   },
-
-  // Add function to save/unsave posts
   savePost: async (postId) => {
     try {
-      console.log('saving post', postId)
-      return await api.post(`/users/save-post/${postId}`);
+      const res = await api.post(`/users/save-post/${postId}`);
+      return res;
     } catch (error) {
-      console.error("❌ Error saving post:", error);
       throw error;
     }
   },
-
   unsavePost: async (postId) => {
     try {
-      return await api.delete(`/users/save-post/${postId}`);
+      const res = await api.delete(`/users/save-post/${postId}`);
+      return res;
     } catch (error) {
-      console.error("❌ Error unsaving post:", error);
       throw error;
     }
   },
-
-  // Add function to get user activity
   getUserActivity: async () => {
     try {
       return await api.get("/user/activity");
     } catch (error) {
-      console.error("❌ Error fetching user activity:", error);
+      throw error;
+    }
+  },
+  deleteAccount: async () => {
+    try {
+      const res = await api.delete('/users/deleteme');
+      return res;
+    } catch (error) {
       throw error;
     }
   },
@@ -252,42 +227,28 @@ export const userAPI = {
 // Posts API - Remove localStorage fallbacks, trust the backend
 export const postAPI = {
   getAllPosts: async (params = {}) => {
-    try {
-      console.log("🔄 Fetching all posts...");
+    try {  
       const response = await api.get("/posts", { params });
-      console.log(response)
       return response;
     } catch (error) {
-      console.error("❌ Error fetching posts:", error);
       throw error;
     }
   },
-
   getPost: async (id) => {
     try {
       if (!id) throw new Error('No post ID provided');
       const response = await api.get(`/posts/${id}`);
-      console.log(response)
       if (!response.data) throw new Error('No post data returned');
-      // Always expect a single post object with _id and ownerInfo (may be null)
       const post = response.data;
-      console.log(post)
-      // Ensure _id is present
       if (!post._id) throw new Error('Malformed post data: missing _id');
-      // Ensure ownerInfo is always present (null if missing)
       if (!('ownerInfo' in post)) post.ownerInfo = null;
       return post;
     } catch (error) {
-      console.error('❌ Error fetching post:', error);
       throw error;
     }
   },
-       
   createPost: async ({ postData, postDetail }) => {
     try {
-      // console.log("📝 Creating new post via API:", postData.title);
-      console.log(postData, postDetail);
-
       // Make sure we have a proper user connection
       const userData = localStorage.getItem("user");
       const currentUser = userData ? JSON.parse(userData) : null;
@@ -303,20 +264,12 @@ export const postAPI = {
           finalPostData.user = {
             connect: { id: userId },
           };
-          console.log(
-            "👤 Added user connection from localStorage:",
-            userId
-          );
+         
         } else {
           console.error("❌ No user ID available for post creation");
           throw new Error("User authentication required");
         }
       }
-
-      console.log(
-        "📤 Sending post data with user connection:",
-        finalPostData.user?.connect?.id || "No user connection!"
-      );
 
       // Check for required fields for debugging
       if (!finalPostData.title) console.warn("⚠️ Missing title in post data");
@@ -327,27 +280,16 @@ export const postAPI = {
 
       // Make the API call with both postData and postDetail
       const response = await api.post("/posts", { postData: finalPostData, postDetail });
-
-      console.log("✅ Post created successfully via API");
       return response.data;
     } catch (error) {
-      console.error("❌ Error creating post:", error);
-
-      if (error.response?.data) {
-        console.error("Server error details:", error.response.data);
-      }
-
       throw error;
     }
   },
-
   updatePost: async (id, { postData, postDetail }) => {
     try {
-      console.log('data sending for update',postData, postDetail);
       const response = await api.put(`/posts/${id}`, { postData, postDetail });
       return response.data;
     } catch (error) {
-      console.error('❌ Error updating post:', error);
       throw error;
     }
   },
@@ -361,7 +303,6 @@ export const postAPI = {
         throw new Error(response.data?.message || 'Failed to delete post');
       }
     } catch (error) {
-      console.error('❌ Error deleting post:', error);
       throw error;
     }
   },
@@ -372,105 +313,44 @@ export const postAPI = {
 export const chatAPI = {
   // Get all conversations for current user
   getChats: async () => {
-    console.log("🔄 API Request: GET /chat/conversations");
-
     try {
-      // Try real API first
-      try {
-        const response = await api.get(`/chat/conversations`); // Remove userId parameter
-        console.log("✅ API Success: Fetched chats");
-        return response;
-      } catch (error) {
-        console.log("❌ API Error:", error.message);
-        console.log("🔄 Falling back to mock chat API");
-        return await mockChatAPI.getChats();
-      }
+      const response = await api.get(`/chat/conversations`);
+      return response;
     } catch (error) {
-      console.log("❌ Error in chatAPI.getChats:", error.message);
       return { data: [] };
     }
   },
 
   // Get messages for a specific chat
   getMessages: async (chatId) => {
-    console.log(`🔄 API Request: GET /chat/${chatId}/messages`);
-
     try {
-      // Try real API first
-      try {
-        const response = await api.get(`/chat/${chatId}/messages`);
-        console.log("✅ API Success: Fetched messages");
-        return response;
-      } catch (error) {
-        console.log("❌ API Error:", error.message);
-        console.log("🔄 Falling back to mock chat API");
-        return await mockChatAPI.getMessages(chatId);
-      }
+      const response = await api.get(`/chat/${chatId}/messages`);
+      return response;
     } catch (error) {
-      console.log("❌ Error in chatAPI.getMessages:", error.message);
       return { data: [] };
     }
   },
 
   // Create a new chat with another user
   createChat: async (userId, propertyId = null) => {
-    console.log(
-      `🔄 Creating chat with user: ${userId}${
-        propertyId ? ` for property: ${propertyId}` : ""
-      }`
-    );
-
     try {
-      // Prepare request payload
       const payload = { userId };
       if (propertyId && propertyId !== "undefined" && propertyId !== "null") {
         payload.propertyId = propertyId;
       }
-
-      console.log("📤 Request payload:", payload);
-
       const response = await api.post(`/chat`, payload);
-      console.log("✅ Chat created/retrieved:", response.data);
       return response;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message;
-      const errorDetails =
-        error.response?.data?.error || "No details available";
-
-      console.error("❌ Error creating chat:", errorMessage);
-      console.error("❌ Error details:", errorDetails);
-
-      // Log the request details for debugging
-      console.error("❌ Failed request details:", {
-        url: "/chat",
-        method: "POST",
-        payload: { userId, propertyId },
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-      });
-
       throw error;
     }
   },
 
   // Send a message in a chat - FIXED URL
   sendMessage: async (chatId, content) => {
-    console.log(
-      `🔄 Sending message to chat ${chatId}: ${content.substring(0, 30)}${
-        content.length > 30 ? "..." : ""
-      }`
-    );
-
     try {
-      // Remove the duplicate /api/ prefix
       const response = await api.post(`/chat/${chatId}/messages`, { content });
-      console.log("✅ Message sent:", response.data);
       return response;
     } catch (error) {
-      console.error(
-        "❌ Error sending message:",
-        error.response?.data || error.message
-      );
       throw error;
     }
   },
@@ -478,11 +358,9 @@ export const chatAPI = {
   // Fix the other methods too
   markChatAsRead: async (chatId) => {
     try {
-      // Remove the duplicate /api/ prefix
       const response = await api.put(`/chat/${chatId}/read`);
       return response;
     } catch (error) {
-      console.error("❌ Error marking chat as read:", error);
       return { data: { success: false } };
     }
   },

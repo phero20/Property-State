@@ -1,15 +1,17 @@
+import { toast as reactToast } from 'react-toastify';
+
 const toast = {
   success: (message) => {
-    alert(`✅ ${message}`);
+    reactToast.success(message);
   },
   error: (message) => {
-    alert(`❌ ${message}`);
+    reactToast.error(message);
   },
   warning: (message) => {
-    alert(`⚠️ ${message}`);
+    reactToast.warn(message);
   },
   info: (message) => {
-    alert(`ℹ️ ${message}`);
+    reactToast.info(message);
   }
 };
 

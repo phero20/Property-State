@@ -28,7 +28,7 @@ const postSchema = new mongoose.Schema({
   postDetail: { type: mongoose.Schema.Types.ObjectId, ref: 'PostDetail' },
   conversations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' }],
   tags: [{ type: String }],
-  views: { type: Number, default: 0 }, // Add views field to track post views
+  views: { type: Number, default: 0 }, 
 }, { timestamps: true });
 
 const PostDetail = mongoose.model('PostDetail', postDetailSchema);

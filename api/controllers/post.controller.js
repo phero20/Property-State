@@ -3,10 +3,10 @@ import User from '../models/User.js';
 import SavedPost from '../models/SavedPost.js'; // <-- Add this import
 import cloudinary from '../lib/cloudinary.js';
 
+// Get paginated and filtered posts
 export const getPosts = async (req, res) => {
   const query = req.query;
   try {
-    console.log('get posts running with query:', query);
     // Build filter object for Mongoose
     const filter = {};
     if (query.city) filter.city = { $regex: query.city, $options: 'i' };
@@ -22,19 +22,42 @@ export const getPosts = async (req, res) => {
     const page = parseInt(query.page) || 1;
     const limit = parseInt(query.limit) || 20;
     const skip = (page - 1) * limit;
-    // Query posts
+    // Query posts and populate user info
     const posts = await Post.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .populate('userId')
       .select('title price images address city bedroom bathroom type property createdAt userId');
-    res.status(200).json(posts);
+    // Map posts to include ownerInfo
+    const postsWithOwner = posts.map(post => {
+      const postObj = post.toObject();
+      const user = post.userId;
+      return {
+        ...postObj,
+        ownerInfo: user ? {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          phone: user.phone || null,
+          fullName: user.fullName || user.username,
+          avatar: user.avatar,
+          verified: false,
+          showContactInfo: true,
+          memberSince: user.createdAt,
+          location: post.city,
+          userType: 'standard',
+        } : null,
+      };
+    });
+    res.status(200).json(postsWithOwner);
   } catch (err) {
     console.error('❌ Database error in getPosts:', err);
     res.status(200).json([]);
   }
 };
 
+// Create a new post
 export const addPost = async (req, res) => {
   try {
     const { postData, postDetail } = req.body;
@@ -46,7 +69,6 @@ export const addPost = async (req, res) => {
     const numericPrice = parseFloat(postData.price);
     const numericBedroom = postData.bedroom ? parseInt(postData.bedroom) : undefined;
     const numericBathroom = postData.bathroom ? parseFloat(postData.bathroom) : undefined;
-  console.log('data is',postData)
     // Upload images to Cloudinary if present
     let imageUrls = [];
     if (Array.isArray(postData.images) && postData.images.length > 0) {
@@ -56,8 +78,6 @@ export const addPost = async (req, res) => {
             console.error(`Image at index ${idx} is not a string:`, img);
             return null;
           }
-          // Log the first 100 chars for debugging
-          console.log(`Uploading image[${idx}]:`, img.substring(0, 100));
           // Ensure the string starts with data:image/
           if (!img.startsWith('data:image/')) {
             console.error(`Image at index ${idx} does not start with data:image/:`, img.substring(0, 30));
@@ -67,7 +87,6 @@ export const addPost = async (req, res) => {
             folder: 'property-listings',
             resource_type: 'image',
           });
-          console.log(`Cloudinary upload success for image[${idx}]:`, uploadRes.secure_url);
           return uploadRes.secure_url;
         } catch (err) {
           console.error(`Cloudinary upload error for image[${idx}]:`, err);
@@ -108,7 +127,6 @@ export const addPost = async (req, res) => {
     }
     // Populate user info
     const populatedPost = await Post.findById(newPost._id).populate('userId');
-    console.log('Populated user:', populatedPost.userId);
     const responsePost = {
       ...populatedPost.toObject(),
       postDetail: newPostDetail,
@@ -126,7 +144,6 @@ export const addPost = async (req, res) => {
         userType: 'standard',
       } : undefined,
     };
-    // console.log("responsePost",responsePost)
     res.status(201).json(responsePost);
   } catch (err) {
     console.error('❌ Database error creating post:', err);
@@ -134,11 +151,11 @@ export const addPost = async (req, res) => {
   }
 };
 
+// Get a single post by ID
 export const getPost = async (req, res) => {
   const id = req.params.id;
   try {
     // Validate MongoDB ObjectId
-    console.log('get post callled with id:', id);
     if (!id || id.length !== 24) {
       return res.status(400).json({ message: "Invalid post ID" });
     }
@@ -180,7 +197,6 @@ export const getPost = async (req, res) => {
       ownerInfo,
       postDetail: post.postDetail || null,
     };
-    console.log(transformedPost)
     res.status(200).json(transformedPost);
   } catch (err) {
     console.error('❌ Error in getPost:', err);
@@ -188,13 +204,12 @@ export const getPost = async (req, res) => {
   }
 };
 
+// Update a post
 export const updatePost = async (req, res) => {
   const id = req.params.id;
   const tokenUserId = req.user.id || req.user.id;
   const { postData, postDetail } = req.body;
   try {
-    // First check if post exists and belongs to this user
-    console.log('data from frontend',postData, postDetail)
     const existingPost = await Post.findById(id);
     if (!existingPost) {
       return res.status(404).json({ message: "Post not found" });
@@ -202,11 +217,9 @@ export const updatePost = async (req, res) => {
     if (existingPost.userId.toString() !== tokenUserId) {
       return res.status(403).json({ message: "Not authorized to update this post" });
     }
-    // Upload new images to Cloudinary if any are base64
     let imageUrls = existingPost.images || [];
     if (postData && Array.isArray(postData.images)) {
       if (postData.images.length > 0) {
-        // Always re-upload any base64 images, keep URLs as is
         const uploadPromises = postData.images.map(async (img) => {
           if (typeof img === 'string' && img.startsWith('data:image/')) {
             try {
@@ -216,25 +229,21 @@ export const updatePost = async (req, res) => {
               });
               return uploadRes.secure_url;
             } catch (err) {
+              // keep error for cloudinary upload
               console.error('Cloudinary upload error:', err);
               return null;
             }
           } else if (typeof img === 'string' && img.startsWith('http')) {
-            // Already a Cloudinary or remote URL, keep as is
             return img;
           } else {
-            // Not a valid image string, skip
             return null;
           }
         });
         imageUrls = (await Promise.all(uploadPromises)).filter(Boolean);
-        console.log(`Updated image URLs:`, imageUrls);
       } else {
-        // If images array is empty, clear images
         imageUrls = [];
       }
     }
-    // Update post (remove latitude, longitude; add description)
     const updateData = {
       title: postData.title,
       price: postData.price ? parseFloat(postData.price) : undefined,
@@ -248,7 +257,6 @@ export const updatePost = async (req, res) => {
       description: postData.description || '',
     };
     const updatedPost = await Post.findByIdAndUpdate(id, updateData, { new: true }).populate('userId');
-    // Update or create postDetail if provided
     let updatedPostDetail = null;
     if (postDetail) {
       if (updatedPost.postDetail) {
@@ -263,7 +271,6 @@ export const updatePost = async (req, res) => {
         await updatedPost.save();
       }
     }
-    // Populate postDetail for response
     const populatedPost = await Post.findById(updatedPost._id).populate('userId').populate('postDetail');
     const ownerInfo = populatedPost.userId ? {
       id: populatedPost.userId.id,
@@ -291,16 +298,17 @@ export const updatePost = async (req, res) => {
     };
     res.status(200).json(responsePost);
   } catch (err) {
-    console.log(err);
+    // error updating post
+    console.error(err);
     res.status(500).json({ message: "Failed to update post" });
   }
 };
 
+// Delete a post
 export const deletePost = async (req, res) => {
   const id = req.params.id;
   const tokenUserId = req.user.id;
   try {
-    // First check if post exists and belongs to this user
     const existingPost = await Post.findById(id);
     if (!existingPost) {
       return res.status(404).json({ message: "Post not found" });
@@ -308,17 +316,16 @@ export const deletePost = async (req, res) => {
     if (existingPost.userId.toString() !== tokenUserId) {
       return res.status(403).json({ message: "Not authorized to delete this post" });
     }
-    // Remove post ID from all users' savedPosts arrays
     await User.updateMany(
       { savedPosts: id },
       { $pull: { savedPosts: id } }
     );
-    // Remove all SavedPost documents for this post
     await SavedPost.deleteMany({ post: id });
     await Post.findByIdAndDelete(id);
     res.status(200).json({ success: true, message: "Post deleted and removed from all users' saved posts" });
   } catch (err) {
-    console.log(err);
+    // error deleting post
+    console.error(err);
     res.status(500).json({ message: "Failed to delete post" });
   }
 };

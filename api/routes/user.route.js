@@ -8,7 +8,8 @@ import {
   savePost,
   unsavePost,
   getUserStats,
-  getSavedPosts
+  getSavedPosts,
+  deleteCurrentUser
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -31,5 +32,7 @@ router.get("/:id/posts", getUserPosts);
 // Add route for saving and unsaving posts
 router.post("/save-post/:postId", verifyToken, savePost);
 router.delete("/save-post/:postId", verifyToken, unsavePost);
+// Delete current user account (authenticated user)
+router.delete('/deleteme', verifyToken, deleteCurrentUser);
 
 export default router;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usePosts } from '../hooks/usePosts';
 import PropertyCard from '../components/PropertyCard';
 import { useApiStatus } from '../context/ApiStatusContext';
+import { toast } from '../utils/toast';
 
 const Posts = () => {
   const { posts, loading, error, loadPosts } = usePosts();
@@ -19,10 +20,6 @@ const Posts = () => {
 
   // Apply filters whenever posts or filters change
   useEffect(() => {
-    console.log('🔍 Applying filters to posts...');
-    console.log('📊 Total posts available:', posts.allPosts.length);
-    console.log('🏷️ Current filters:', filters);
-
     let filtered = [...posts.allPosts];
 
     // Apply filters
@@ -63,14 +60,12 @@ const Posts = () => {
         post.postDetail?.desc?.toLowerCase().includes(searchTerm)
       );
     }
-
-    console.log('✅ Filtered posts count:', filtered.length);
     setFilteredPosts(filtered);
   }, [posts.allPosts, filters]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    console.log(`🔄 Filter changed: ${name} = ${value}`);
+    toast.info(`Filter changed: ${name} = ${value}`);
     setFilters(prev => ({
       ...prev,
       [name]: value
@@ -78,7 +73,7 @@ const Posts = () => {
   };
 
   const clearFilters = () => {
-    console.log('🧹 Clearing all filters');
+    toast.info('Clearing all filters');
     setFilters({
       city: '',
       type: '',
@@ -91,7 +86,6 @@ const Posts = () => {
   };
 
   const refreshPosts = () => {
-    console.log('🔄 Manually refreshing posts...');
     loadPosts();
   };
 
@@ -99,33 +93,35 @@ const Posts = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading properties...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: 'var(--theme-accent)' }}></div>
+          <p className="mt-4" style={{ color: 'var(--text-muted)' }}>Loading properties...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8" style={{ background: 'var(--bg-main)' }}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Properties</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-main)' }}>Properties</h1>
+          <p style={{ color: 'var(--text-muted)' }}>
             {filteredPosts.length} {filteredPosts.length === 1 ? 'property' : 'properties'} available
           </p>
         </div>
         <div className="flex space-x-4 mt-4 md:mt-0">
           <button
             onClick={refreshPosts}
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
+            className="px-4 py-2 rounded hover:opacity-90 transition cursor-pointer"
+            style={{ background: 'var(--text-light)', color: '#fff' }}
           >
             🔄 Refresh
           </button>
           <button
             onClick={() => window.location.href = '/add-post'}
-            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition"
+            className="px-6 py-2 rounded hover:opacity-90 transition cursor-pointer"
+            style={{ background: 'var(--theme-accent)', color: 'var(--text-on-accent)' }}
           >
             + Add Property
           </button>
@@ -134,21 +130,22 @@ const Posts = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <div className="rounded-lg p-4 mb-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--theme-accent)' }}>
           <div className="flex items-center">
-            <span className="text-yellow-600 mr-2">⚠️</span>
-            <p className="text-yellow-800">{error}</p>
+            <span className="mr-2" style={{ color: 'var(--theme-accent)' }}>⚠️</span>
+            <p style={{ color: 'var(--text-main)' }}>{error}</p>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+      <div className="rounded-lg shadow-md p-6 mb-8" style={{ background: 'var(--bg-card)' }}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 md:mb-0">Filter Properties</h2>
+          <h2 className="text-lg font-semibold mb-4 md:mb-0" style={{ color: 'var(--text-main)' }}>Filter Properties</h2>
           <button
             onClick={clearFilters}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-sm font-medium hover:underline cursor-pointer"
+            style={{ color: 'var(--theme-accent)' }}
           >
             Clear All Filters
           </button>
@@ -157,7 +154,7 @@ const Posts = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
               Search
             </label>
             <input
@@ -166,13 +163,14 @@ const Posts = () => {
               value={filters.search}
               onChange={handleFilterChange}
               placeholder="Search properties..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
 
           {/* City */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
               City
             </label>
             <input
@@ -181,20 +179,22 @@ const Posts = () => {
               value={filters.city}
               onChange={handleFilterChange}
               placeholder="Enter city"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
               Type
             </label>
             <select
               name="type"
               value={filters.type}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="">All Types</option>
               <option value="rent">For Rent</option>
@@ -204,14 +204,15 @@ const Posts = () => {
 
           {/* Property Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
               Property Type
             </label>
             <select
               name="property"
               value={filters.property}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="">All Properties</option>
               <option value="apartment">Apartment</option>
@@ -225,14 +226,15 @@ const Posts = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Bedrooms */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
               Min Bedrooms
             </label>
             <select
               name="bedroom"
               value={filters.bedroom}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="">Any</option>
               <option value="1">1+</option>
@@ -244,7 +246,7 @@ const Posts = () => {
 
           {/* Min Price */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
               Min Price
             </label>
             <input
@@ -253,13 +255,14 @@ const Posts = () => {
               value={filters.minPrice}
               onChange={handleFilterChange}
               placeholder="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
 
           {/* Max Price */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
               Max Price
             </label>
             <input
@@ -268,35 +271,16 @@ const Posts = () => {
               value={filters.maxPrice}
               onChange={handleFilterChange}
               placeholder="No limit"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
         </div>
       </div>
 
-      {/* Development Debug Info */}
-      {/* {process.env.NODE_ENV === 'development' && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-          <h3 className="text-gray-800 font-semibold mb-2">🔧 Debug Info (Development Only)</h3>
-          <div className="text-sm text-gray-700 space-y-1">
-            <p>Total Posts: {posts.allPosts.length}</p>
-            <p>My Posts: {posts.myPosts.length}</p>
-            <p>Filtered Posts: {filteredPosts.length}</p>
-            <p>Loading: {loading ? 'Yes' : 'No'}</p>
-            <p>Error: {error || 'None'}</p>
-            <details className="mt-2">
-              <summary className="cursor-pointer font-medium">View Sample Post Data</summary>
-              <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto max-h-32">
-                {JSON.stringify(posts.allPosts[0] || {}, null, 2)}
-              </pre>
-            </details>
-          </div>
-        </div>
-      )} */}
-
       {/* API Status Message */}
       {isUsingMockData && (
-        <div className="mb-4 p-3 bg-blue-50 text-blue-700 text-sm rounded-md">
+        <div className="mb-4 p-3 text-sm rounded-md" style={{ background: 'var(--bg-card)', color: 'var(--theme-accent)' }}>
           <p><span className="font-semibold">⚠️ Using mock data:</span> API server is offline</p>
         </div>
       )}
@@ -305,16 +289,17 @@ const Posts = () => {
       {filteredPosts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredPosts.map(post => (
-            <PropertyCard key={post._id} post={{...post, id: post._id}} />
+            <div className="flex w-full justify-center"> <PropertyCard key={post._id} post={{...post, id: post._id}} /></div>
+           
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 bg-white rounded-lg shadow-md">
-          <div className="text-gray-400 text-6xl mb-4">🏠</div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+        <div className="text-center py-12 rounded-lg shadow-md" style={{ background: 'var(--bg-card)' }}>
+          <div className="text-6xl mb-4" style={{ color: 'var(--theme-accent)' }}>🏠</div>
+          <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-main)' }}>
             {posts.allPosts.length === 0 ? 'No Properties Available' : 'No Properties Match Your Filters'}
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="mb-4" style={{ color: 'var(--text-muted)' }}>
             {posts.allPosts.length === 0 
               ? 'Be the first to list a property!' 
               : 'Try adjusting your search filters to find more properties.'
@@ -324,14 +309,16 @@ const Posts = () => {
             {posts.allPosts.length === 0 ? (
               <button
                 onClick={() => window.location.href = '/add-post'}
-                className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors"
+                className="px-6 py-3 rounded-md hover:opacity-90 transition-colors cursor-pointer"
+                style={{ background: 'var(--theme-accent)', color: 'var(--text-on-accent)' }}
               >
                 List Your Property
               </button>
             ) : (
               <button
                 onClick={clearFilters}
-                className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors"
+                className="px-6 py-3 rounded-md hover:opacity-90 transition-colors cursor-pointer"
+                style={{ background: 'var(--theme-accent)', color: 'var(--text-on-accent)' }}
               >
                 Clear Filters
               </button>

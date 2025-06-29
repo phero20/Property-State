@@ -52,22 +52,6 @@ export const updateUser = async (req, res) => {
   }
 };
 
-export const deleteUser = async (req, res) => {
-  const userId = req.params.id;
-  const authUserId = req.user.id;
-
-  if (userId !== authUserId) {
-    return res.status(403).json({ msg: "Not your account!" });
-  }
-
-  try {
-    await User.findByIdAndDelete(userId);
-    res.status(200).json({ msg: "User account removed." });
-  } catch (error) {
-    console.error('Delete error:', error);
-    res.status(500).json({ msg: "Couldn't remove user." });
-  }
-};
 
 export const savePost = async (req, res) => {
   const postId = req.params.postId;
@@ -165,7 +149,6 @@ export const getNotificationNumber = async (req, res) => {
 export const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log("🔔 Getting notifications for user:", userId);
 
     // For now, just return a static number
     // In the future, you can query your database for actual notifications
@@ -232,5 +215,35 @@ export const getUserStats = async (req, res) => {
   } catch (err) {
     console.error('❌ Error getting user stats:', err);
     res.status(500).json({ message: "Failed to get user stats" });
+  }
+};
+
+// Delete current user account (authenticated user)
+export const deleteCurrentUser = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // Find all posts authored by this user (field is userId)
+    const userPosts = await Post.find({ userId: userId }, '_id');
+    const userPostIds = userPosts.map(p => p._id);
+
+    // Remove user
+    await User.findByIdAndDelete(userId);
+    // Remove user's posts
+    await Post.deleteMany({ userId: userId });
+    // Remove user's saved posts
+    await SavedPost.deleteMany({ user: userId });
+    // Remove all user's posts from all users' savedPosts arrays
+    if (userPostIds.length > 0) {
+      await User.updateMany(
+        { savedPosts: { $in: userPostIds } },
+        { $pull: { savedPosts: { $in: userPostIds } } }
+      );
+      // Remove all SavedPost docs for these posts
+      await SavedPost.deleteMany({ post: { $in: userPostIds } });
+    }
+    res.status(200).json({ msg: 'Account and all related data deleted.' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ msg: "Couldn't delete account." });
   }
 };
