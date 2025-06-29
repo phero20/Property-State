@@ -152,9 +152,17 @@ const Register = () => {
         avatar: formData.avatar,
       };
 
-      if (result.success) {
+      const response = await register(completeUserData);
+      const result = response.success;
+
+      if (result) {
         toast.success('Registration successful!');
         navigate('/posts');
+      } else {
+        // Handle API error or malformed response
+        const apiError = (result && result.message) || (response && response.statusText) || 'Registration failed. Please try again.';
+        toast.error(apiError);
+        setError(apiError);
       }
     } catch (error) {
       toast.error(error.message || 'Registration failed. Please try again.');

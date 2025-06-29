@@ -85,6 +85,7 @@ mongoose.connect(process.env.DATABASE_URL, {
   connectTimeoutMS: 60000
 }).then(()=>{
   console.log('conncted to mongodb');
+
 }).catch(err => {
   console.error('❌ MongoDB connection error:', err);
 });
