@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../services/api';
+import logo from '../assets/logo.png'
+
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -18,7 +20,7 @@ const Navbar = () => {
   const fetchNotifications = async () => {
     try {
       const response = await userAPI.getNotifications();
-      setNotifications(response.data || 0);
+      setNotifications(response.data?.totalUnread || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       setNotifications(0); // Fallback to 0 notifications
@@ -56,7 +58,7 @@ const Navbar = () => {
             onClick={closeMenu}
             style={{ letterSpacing: '0.01em' }}
           >
-            <span className="text-2xl mr-1">🏠</span>
+            <img src={logo} alt="" className='w-12' />
             <span>Property State</span>
           </Link>
 

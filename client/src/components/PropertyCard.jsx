@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaHome, FaBed, FaBath, FaRulerCombined, FaCheckCircle, FaEnvelope, FaPhone, FaMapMarkerAlt, FaUser } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
+import logo2  from '../assets/logo2.png'
+
 
 const PropertyCard = ({ post, isSaved }) => {
-  console.log('PropertyCard post:', post);
   const navigate = useNavigate();
 
   // Use post._id for navigation and logic
@@ -12,10 +14,13 @@ const PropertyCard = ({ post, isSaved }) => {
     navigate(`/posts/${post._id}`, { state: { isSaved: !!isSaved } });
   };
 
+
+  const { user } = useAuth();
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: user?.currency || 'USD',
       minimumFractionDigits: 0
     }).format(price || 0);
   };
@@ -45,7 +50,7 @@ const PropertyCard = ({ post, isSaved }) => {
     onClick={handleClick}
   >
     {/* Header Image */}
-    <div className="relative w-full h-48 bg-[var(--bg-light-accent)] flex items-center justify-center">
+    <div className="relative w-full h-48  flex items-center justify-center">
       {post.images?.length > 0 ? (
         <img
           src={post.images[0]}
@@ -57,7 +62,8 @@ const PropertyCard = ({ post, isSaved }) => {
           }}
         />
       ) : (
-        <FaHome className="text-5xl text-[var(--theme-accent)]" />
+        <div className='bg-[var(--theme-accent)] w-full h-full flex items-center justify-center opacity-80'><img src={logo2} alt="" className='w-36' /></div>
+        
       )}
 
       {/* Type Badge */}

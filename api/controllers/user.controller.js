@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import {Post} from '../models/Post.js';
 import SavedPost from '../models/SavedPost.js';
 import crypto from 'crypto';
+import Chat from '../models/Chat.js';
+import mongoose from 'mongoose';
 
 export const getUsers = async (req, res) => {
   try {
@@ -146,13 +148,34 @@ export const getNotificationNumber = async (req, res) => {
 };
 
 // Add or update the getNotifications function
+
+
+
+
 export const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
+    const objectId = new mongoose.Types.ObjectId(userId);
 
-    // For now, just return a static number
-    // In the future, you can query your database for actual notifications
-    res.status(200).json(3);
+    // Find all chats where the user is a participant
+    const chats = await Chat.find({
+      $or: [
+        { user1Id: objectId },
+        { user2Id: objectId }
+      ]
+    });
+
+    // Sum unread messages for the current user
+    let totalUnread = 0;
+    chats.forEach(chat => {
+      if (chat.user1Id.equals(objectId)) {
+        totalUnread += chat.user1Unread || 0;
+      } else if (chat.user2Id.equals(objectId)) {
+        totalUnread += chat.user2Unread || 0;
+      }
+    });
+
+    res.status(200).json({ totalUnread });
   } catch (error) {
     console.error("❌ Error getting notifications:", error);
     res.status(500).json({ message: "Failed to get notifications" });
@@ -199,12 +222,27 @@ export const getUserStats = async (req, res) => {
     const totalViews = posts.reduce((sum, post) => sum + (post.views || 0), 0);
     // Saved posts count
     const savedPosts = user.savedPosts ? user.savedPosts.length : 0;
-    // Total messages (sent + received)
-    // For now, count sentMessages array; for more accuracy, count from Message model
-    // const totalMessages = user.sentMessages ? user.sentMessages.length : 0;
-    // More accurate: count all messages where senderId = userId or recipient is in user's conversations
-    const Message = (await import('../models/Message.js')).default;
-    const totalMessages = await Message.countDocuments({ senderId: userId });
+    const objectId = new mongoose.Types.ObjectId(userId);
+
+    // Find all chats where the user is a participant
+    const chats = await Chat.find({
+      $or: [
+        { user1Id: objectId },
+        { user2Id: objectId }
+      ]
+    });
+
+    // Sum unread messages for the current user
+    let totalUnread = 0;
+    chats.forEach(chat => {
+      if (chat.user1Id.equals(objectId)) {
+        totalUnread += chat.user1Unread || 0;
+      } else if (chat.user2Id.equals(objectId)) {
+        totalUnread += chat.user2Unread || 0;
+      }
+    });
+
+    let totalMessages=totalUnread;
 
     res.status(200).json({
       totalPosts,

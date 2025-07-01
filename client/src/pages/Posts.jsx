@@ -17,6 +17,7 @@ const Posts = () => {
     maxPrice: '',
     search: ''
   });
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
 
   // Apply filters whenever posts or filters change
   useEffect(() => {
@@ -65,7 +66,6 @@ const Posts = () => {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    toast.info(`Filter changed: ${name} = ${value}`);
     setFilters(prev => ({
       ...prev,
       [name]: value
@@ -138,19 +138,45 @@ const Posts = () => {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="rounded-lg shadow-md p-6 mb-8" style={{ background: 'var(--bg-card)' }}>
+      {/* Mobile Filter Button */}
+      <div className="md:hidden flex justify-end mb-4">
+        <button
+          className="px-4 py-2 bg-[var(--theme-accent)] text-white rounded font-semibold shadow"
+          onClick={() => setShowMobileFilter((v) => !v)}
+        >
+          Filter
+        </button>
+      </div>
+
+      {/* Filters Section */}
+      <div
+        className={`rounded-lg shadow-md p-6 mb-8 ${
+          showMobileFilter ? 'block' : 'hidden'
+        } md:block fixed md:static top-0 left-0 w-full h-full z-50 md:w-auto md:h-auto md:z-auto overflow-auto md:overflow-visible ${
+          showMobileFilter ? '' : 'md:mb-8'
+        }`}
+        style={showMobileFilter ? { background: 'rgba(255,255,255,0.98)' } : { background: 'var(--bg-card)' }}
+      >
+        {/* Close button for mobile */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
           <h2 className="text-lg font-semibold mb-4 md:mb-0" style={{ color: 'var(--text-main)' }}>Filter Properties</h2>
-          <button
-            onClick={clearFilters}
-            className="text-sm font-medium hover:underline cursor-pointer"
-            style={{ color: 'var(--theme-accent)' }}
-          >
-            Clear All Filters
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearFilters}
+              className="text-sm font-medium hover:underline cursor-pointer"
+              style={{ color: 'var(--theme-accent)' }}
+            >
+              Clear All Filters
+            </button>
+            {/* Only show close on mobile */}
+            <button
+              className="md:hidden ml-2 px-2 py-1 text-gray-700 bg-gray-200 rounded"
+              onClick={() => setShowMobileFilter(false)}
+            >
+              Close
+            </button>
+          </div>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* Search */}
           <div>
@@ -167,7 +193,6 @@ const Posts = () => {
               style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
-
           {/* City */}
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
@@ -183,7 +208,6 @@ const Posts = () => {
               style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
-
           {/* Type */}
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
@@ -193,7 +217,7 @@ const Posts = () => {
               name="type"
               value={filters.type}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              className="w-full px-3 py-2 border cursor-pointer rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
               style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="">All Types</option>
@@ -201,7 +225,6 @@ const Posts = () => {
               <option value="buy">For Sale</option>
             </select>
           </div>
-
           {/* Property Type */}
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
@@ -211,7 +234,7 @@ const Posts = () => {
               name="property"
               value={filters.property}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              className="w-full px-3 py-2 border rounded-md cursor-pointer focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
               style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="">All Properties</option>
@@ -222,7 +245,6 @@ const Posts = () => {
             </select>
           </div>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Bedrooms */}
           <div>
@@ -233,7 +255,7 @@ const Posts = () => {
               name="bedroom"
               value={filters.bedroom}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border rounded-md focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
+              className="w-full px-3 py-2 border rounded-md cursor-pointer focus:border-[var(--theme-accent)] focus:ring-2 focus:ring-[var(--theme-accent)] focus:outline-none"
               style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             >
               <option value="">Any</option>
@@ -243,7 +265,6 @@ const Posts = () => {
               <option value="4">4+</option>
             </select>
           </div>
-
           {/* Min Price */}
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
@@ -259,7 +280,6 @@ const Posts = () => {
               style={{ borderColor: 'var(--text-light)', color: 'var(--text-main)', background: 'var(--bg-main)' }}
             />
           </div>
-
           {/* Max Price */}
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-main)' }}>
@@ -288,8 +308,8 @@ const Posts = () => {
       {/* Properties Grid */}
       {filteredPosts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredPosts.map(post => (
-            <div className="flex w-full justify-center"> <PropertyCard key={post._id} post={{...post, id: post._id}} /></div>
+          {filteredPosts.map((post,index) => (
+            <div key={index} className="flex w-full justify-center"> <PropertyCard key={post._id} post={{...post, id: post._id}} /></div>
            
           ))}
         </div>

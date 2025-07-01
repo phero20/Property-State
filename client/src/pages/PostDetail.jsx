@@ -5,6 +5,8 @@ import { postAPI, chatAPI,userAPI } from '../services/api';
 import socketService from '../services/socket';
 import { toast } from 'react-toastify';
 import { FaArrowLeft, FaArrowRight, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCheckCircle, FaRegStar, FaStar, FaBed, FaBath, FaRulerCombined, FaPlug, FaDog, FaMoneyBillWave, FaSchool, FaBus, FaUtensils, FaEdit, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
+import logo2  from '../assets/logo2.png'
+
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -122,11 +124,10 @@ const PostDetail = () => {
     }
     setShowContactInfo(true);
   };
-
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: user?.currency || 'USD',
       minimumFractionDigits: 0
     }).format(price || 0);
   };
@@ -163,6 +164,44 @@ const PostDetail = () => {
       // Rollback UI state
       setIsSaved(prevSaved);
       toast.error('Failed to update saved properties.');
+      console.log(err.message)
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+    try {
+      const ownerId = post.ownerInfo.id;
+      if (!ownerId) {
+        toast.error('Cannot contact owner: post has no owner information');
+        throw new Error('Cannot contact owner: post has no owner information');
+      }
+      if (ownerId === user._id) {
+        toast.info("This is your own post!");
+        return;
+      }
+      setContacting(true);
+      toast.info("Creating conversation...");
+      const response = await chatAPI.createChat(ownerId, post._id);
+      toast.success("Conversation created! Redirecting to chat...");
+      navigate('/chat', { state: { selectedChatId: response.data._id } });
+    } catch (error) {
+      if (error.response?.status === 404) {
+        toast.error('User not found. They may have deleted their account.');
+      } else if (error.response?.status === 500) {
+        if (error.response.data?.error?.includes('fullName')) {
+          toast.error('Sorry, there was a database schema issue. Please try again later.');
+        } else {
+          toast.error('Server error. Please try again later.');
+        }
+      } else {
+        toast.error(`Failed to contact the owner. ${error.message}`);
+      }
+    } finally {
+      setContacting(false);
     }
   };
 
@@ -170,7 +209,7 @@ const PostDetail = () => {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--theme-accent)] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading property details...</p>
         </div>
       </div>
@@ -269,7 +308,7 @@ const PostDetail = () => {
               </>
             ) : (
               <div className="w-full h-full flex items-center justify-center" style={{ background: 'var(--bg-card)' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '3rem' }}>🏠</span>
+                <img src={logo2} alt="" className='w-48 ' />
               </div>
             )}
             {/* Fallback placeholder */}
@@ -279,7 +318,7 @@ const PostDetail = () => {
           </div>
 
           {/* Property Details */}
-          <div className="rounded-2xl shadow-md p-6 flex flex-col gap-6" style={{ background: 'var(--bg-card)' }}>
+          <div className="rounded-2xl shadow-md p-6 flex flex-col gap-10" style={{ background: 'var(--bg-card)' }}>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
               <h1 className="text-3xl font-bold" style={{ color: 'var(--text-main)' }}>{post.title}</h1>
               <span className="px-3 py-1 rounded text-sm font-semibold text-white self-start sm:self-auto" style={{ background: post.type === 'rent' ? 'var(--theme-accent)' : 'var(--hover-theme-accent)' }}>
@@ -449,7 +488,7 @@ const PostDetail = () => {
               {/* Contact Actions */}
               <div className="space-y-3">
                 <button
-                  onClick={handleContactOwner}
+                  onClick={handleSendMessage}
                   disabled={!isAuthenticated || post.ownerInfo.id === user?._id}
                   className="w-full px-4 py-3 rounded-md hover:opacity-90 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
                   style={{ background: 'var(--theme-accent)', color: 'white', cursor: 'pointer' }}

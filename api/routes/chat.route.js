@@ -23,7 +23,7 @@ router.use(verifyToken);
 router.get("/conversations", getConversations);
 
 // Create a new conversation
-router.post("/", createConversation);
+router.post("/",verifyToken, createConversation);
 
 // Get messages for a conversation
 router.get("/:chatId/messages", getMessages);

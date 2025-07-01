@@ -1,7 +1,8 @@
 import { io } from 'socket.io-client';
 
 // Define the socket server URL - use production URL
-const SOCKET_URL = 'http://localhost:4001'
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL 
+
 
 console.log('🔌 Using Socket URL:', SOCKET_URL);
 
@@ -63,6 +64,9 @@ class SocketService {
             connected: true,
             on: (event, callback) => {
               console.log(`🔄 Simulated socket event listener added: ${event}`);
+              if (typeof callback === 'function') {
+                callback({ simulated: true });
+              }
             },
             off: (event) => {
               console.log(`🔄 Simulated socket event listener removed: ${event}`);
@@ -96,14 +100,7 @@ class SocketService {
   
   // Update the sendMessage method to include all necessary fields
   sendMessage(receiverId, messageData) {
-    if (!messageData || !receiverId) {
-      console.error('❌ Cannot send message: Missing data');
-      return false;
-    }
-    
     if (this.socket && this.connected) {
-      console.log('📨 Sending message via socket to:', receiverId);
-      
       // Ensure all required fields are present
       const message = {
         ...messageData,
@@ -113,12 +110,10 @@ class SocketService {
         content: messageData.content,
         createdAt: messageData.createdAt || new Date().toISOString(),
       };
-      
       this.socket.emit('sendMessage', { 
         receiverId,
         data: message
       });
-      
       return true;
     } else {
       console.error('❌ Cannot send message: Socket not connected');
@@ -130,21 +125,15 @@ class SocketService {
   onMessage(callback) {
     if (this.socket) {
       console.log('👂 Registering message listener for user:', this.userId);
-      this.socket.on('message:receive', (data) => {
-        // Verify this message is intended for the current user
-        if (data.receiverId === this.userId || data.chatParticipants?.includes(this.userId)) {
-          console.log('📩 Received message intended for this user:', data);
-          callback(data);
-        } else {
-          console.warn('⚠️ Received message not intended for this user, ignoring');
-        }
+      this.socket.on('getMessage', (data) => {
+        callback(data);
       });
     }
   }
   
   offMessage() {
     if (this.socket) {
-      this.socket.off('message:receive');
+      this.socket.off('getMessage');
     }
   }
   

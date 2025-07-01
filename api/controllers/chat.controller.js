@@ -13,29 +13,47 @@ const isValidObjectId = (id) => {
 };
 
 // Get all conversations for the current user
+import mongoose from 'mongoose';
+
 export const getConversations = async (req, res) => {
   try {
-    const userId = req.userId;
-    // Get all chats where the user is a participant
-    const conversations = await Chat.find({ participants: userId })
-      .populate('participants', 'id username avatar email')
-      .populate({ path: 'messages', options: { sort: { createdAt: -1 }, limit: 1 } });
+    const userId = req.user.id;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Find all chats where the user is either user1 or user2
+    const conversations = await Chat.find({
+      $or: [
+        { user1Id: userObjectId },
+        { user2Id: userObjectId }
+      ]
+    })
+      .populate('user1Id', 'username avatar email')
+      .populate('user2Id', 'username avatar email')
+      .sort({ updatedAt: -1 });
+
     const formattedConversations = conversations.map(conversation => {
-      const otherUser = conversation.participants.find(u => u.id !== userId);
+      // Find the other user
+      const otherUser = conversation.user1Id._id.toString() === userId
+        ? conversation.user2Id
+        : conversation.user1Id;
+
       return {
         id: conversation._id,
         createdAt: conversation.createdAt,
         updatedAt: conversation.updatedAt,
-        lastMessage: conversation.messages[0]?.content || '',
+        lastMessage: conversation.lastMessage || '',
         propertyId: conversation.propertyId,
-        otherUser: otherUser ? {
-          id: otherUser.id,
-          username: otherUser.username,
-          avatar: otherUser.avatar,
-          email: otherUser.email,
-        } : null,
+        user: otherUser
+          ? {
+              id: otherUser._id,
+              username: otherUser.username,
+              avatar: otherUser.avatar,
+              email: otherUser.email,
+            }
+          : null,
       };
     });
+
     res.status(200).json(formattedConversations);
   } catch (error) {
     console.error('❌ Error retrieving conversations:', error);
@@ -46,11 +64,11 @@ export const getConversations = async (req, res) => {
 // Create a new conversation with better error handling
 export const createConversation = async (req, res) => {
   try {
-    const { userId: otherUserId, propertyId } = req.body;
+    console.log('hit create chat',req.body)
+    const {userId, propertyId} = req.body;
     const currentUserId = req.user.id;
-
     // Don't allow creating a conversation with yourself
-    if (currentUserId === otherUserId) {
+    if (currentUserId === userId) {
       return res.status(400).json({ message: 'Cannot create a conversation with yourself' });
     }
 
@@ -60,9 +78,9 @@ export const createConversation = async (req, res) => {
       console.error(`❌ Current user not found: ${currentUserId}`);
       return res.status(404).json({ message: 'Current user not found' });
     }
-    const otherUser = await User.findById(otherUserId);
-    if (!otherUser) {
-      console.error(`❌ Other user not found: ${otherUserId}`);
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error(`❌ Other user not found: ${userId}`);
       return res.status(404).json({ message: 'Other user not found' });
     }
 
@@ -70,51 +88,71 @@ export const createConversation = async (req, res) => {
     const propertyFilter = propertyId ? { propertyId } : {};
     const existingConversation = await Chat.findOne({
       $or: [
-        { user1Id: currentUserId, user2Id: otherUserId },
-        { user1Id: otherUserId, user2Id: currentUserId }
+        { user1Id: currentUserId, user2Id: userId },
+        { user1Id: userId, user2Id: currentUserId }
       ],
       ...propertyFilter
     });
 
     if (existingConversation) {
-      // Format response
-      const otherUserData = existingConversation.user1Id.toString() === currentUserId
-        ? existingConversation.user2Id
-        : existingConversation.user1Id;
+      // Determine the other participant's ID
+      const otherUserId =
+        existingConversation.user1Id.toString() === currentUserId
+          ? existingConversation.user2Id
+          : existingConversation.user1Id;
+
+      // Fetch the other user's info
+      const otherUser = await User.findById(otherUserId);
+
       return res.status(200).json({
+        _id: existingConversation._id,
         id: existingConversation._id,
         createdAt: existingConversation.createdAt,
         updatedAt: existingConversation.updatedAt,
         propertyId: existingConversation.propertyId,
-        otherUser: {
-          id: otherUserData._id,
-          username: otherUser.username,
-          avatar: otherUser.avatar,
-          email: otherUser.email,
-        }
+        user: otherUser
+          ? {
+              id: otherUser._id,
+              username: otherUser.username,
+              avatar: otherUser.avatar,
+              email: otherUser.email,
+            }
+          : null,
       });
     }
 
     // Create new conversation
     const newConversation = await Chat.create({
       user1Id: currentUserId,
-      user2Id: otherUserId,
+      user2Id: userId,
+      participants: [currentUserId, userId],
       ...(propertyId ? { propertyId } : {}),
       user1Unread: 0,
       user2Unread: 0,
       lastMessage: null
     });
 
+    console.log('newConversation sending data response', newConversation._id,
+    newConversation._id,
+   newConversation.createdAt,
+    newConversation.updatedAt,
+ newConversation.propertyId,
+      user._id,
+      user.username,
+        user.avatar,
+        user.email)
+
     res.status(201).json({
+      _id: newConversation._id,
       id: newConversation._id,
       createdAt: newConversation.createdAt,
       updatedAt: newConversation.updatedAt,
       propertyId: newConversation.propertyId,
-      otherUser: {
-        id: otherUser._id,
-        username: otherUser.username,
-        avatar: otherUser.avatar,
-        email: otherUser.email,
+      user: {
+        id: user._id,
+        username: user.username,
+        avatar: user.avatar,
+        email: user.email,
       }
     });
   } catch (error) {
@@ -131,36 +169,41 @@ export const getMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
     const userId = req.user.id;
-    
+
     // Verify user is part of the conversation
-    const conversation = await Chat.findById(chatId).populate('participants');
-    
+    const conversation = await Chat.findById(chatId);
     if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+    if (
+      conversation.user1Id.toString() !== userId &&
+      conversation.user2Id.toString() !== userId
+    ) {
       return res.status(403).json({ message: 'Access denied to this conversation' });
     }
-    
+
     // Get messages
     const messages = await Message.find({ conversationId: chatId })
-      .populate('sender', 'id username avatar')
+      .populate('senderId', 'id username avatar')
       .sort({ createdAt: 'asc' });
-    
+
     // Format messages
     const formattedMessages = messages.map(message => ({
       id: message._id,
       chatId: message.conversationId,
       content: message.content,
-      senderId: message.sender.id,
-      sender: message.sender,
+      senderId: message.senderId.id,
+      sender: message.senderId,
       createdAt: message.createdAt
     }));
-    
-    // Mark messages as read
-    if (conversation.participants.find(u => u.id.toString() === userId) && conversation.user1Unread > 0) {
+
+    // Mark messages as read for the correct user
+    if (conversation.user1Id.toString() === userId && conversation.user1Unread > 0) {
       await Chat.findByIdAndUpdate(chatId, { user1Unread: 0 });
-    } else if (conversation.participants.find(u => u.id.toString() === userId) && conversation.user2Unread > 0) {
+    } else if (conversation.user2Id.toString() === userId && conversation.user2Unread > 0) {
       await Chat.findByIdAndUpdate(chatId, { user2Unread: 0 });
     }
-    
+
     res.status(200).json(formattedMessages);
   } catch (error) {
     console.error('❌ Error retrieving messages:', error);
@@ -174,45 +217,45 @@ export const sendMessage = async (req, res) => {
     const { chatId } = req.params;
     const { content } = req.body;
     const senderId = req.user.id;
-    
     // Validate input
-    if (!content) {
+    if (!content || !content.trim()) {
       return res.status(400).json({ message: 'Message content is required' });
     }
-    
-    // Verify user is part of the conversation
-    const conversation = await Chat.findById(chatId).populate('participants');
-    
-    if (!conversation) {
-      return res.status(403).json({ message: 'Access denied to this conversation' });
+    // Find the chat and verify the user is a participant
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found' });
     }
-    
-    // Determine recipient ID
-    const recipientId = conversation.participants.find(u => u.id.toString() !== senderId).id;
-    
-    // Create message
+    if (
+      chat.user1Id.toString() !== senderId &&
+      chat.user2Id.toString() !== senderId
+    ) {
+      return res.status(403).json({ message: 'You are not a participant in this chat' });
+    }
+    // Create the message
     const message = await Message.create({
       content,
-      senderId,
+      senderId, // <-- use senderId, not sender
       conversationId: chatId
     });
-    
-    // Update conversation
-    await Chat.findByIdAndUpdate(chatId, {
-      updatedAt: new Date(),
-      // Increment unread count for the recipient
-      user1Unread: senderId === conversation.participants[0].id ? { increment: 1 } : undefined,
-      user2Unread: senderId === conversation.participants[1].id ? { increment: 1 } : undefined,
-      lastMessage: content
-    });
-    
+    // Update chat: set lastMessage, increment unread for recipient
+    let update = { lastMessage: content, updatedAt: new Date() };
+    if (chat.user1Id.toString() === senderId) {
+      update.user2Unread = (chat.user2Unread || 0) + 1;
+    } else {
+      update.user1Unread = (chat.user1Unread || 0) + 1;
+    }
+    await Chat.findByIdAndUpdate(chatId, update);
+    // Populate sender info for response
+    const populatedMessage = await Message.findById(message._id)
+    .populate('senderId', 'id username avatar');
     res.status(201).json({
-      id: message._id,
-      chatId,
-      content,
-      senderId,
-      sender: message.sender,
-      createdAt: message.createdAt
+      id: populatedMessage._id,
+      chatId: populatedMessage.conversationId,
+      content: populatedMessage.content,
+      senderId: populatedMessage.senderId.id,
+      sender: populatedMessage.senderId,
+      createdAt: populatedMessage.createdAt
     });
   } catch (error) {
     console.error('❌ Error sending message:', error);
