@@ -155,7 +155,7 @@ const Posts = () => {
         } md:block fixed md:static top-0 left-0 w-full h-full z-50 md:w-auto md:h-auto md:z-auto overflow-auto md:overflow-visible ${
           showMobileFilter ? '' : 'md:mb-8'
         }`}
-        style={showMobileFilter ? { background: 'rgba(255,255,255,0.98)' } : { background: 'var(--bg-card)' }}
+        style={showMobileFilter ? { background: 'var(--bg-card)' } : { background: 'var(--bg-card)' }}
       >
         {/* Close button for mobile */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
