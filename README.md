@@ -44,3 +44,11 @@ User Auth: Login/signup with secure tokens
 Listing Engine: Users can post new listings with images  
 Chat Feature: Connects parties interested in specific properties  
 Responsive UI: Works great on phones, tablets, and desktops
+
+
+# URL's
+
+Frontend : https://property-state-client.vercel.app  
+Backend : https://property-state.vercel.app  
+Socket : https://property-state-socket-7pfn.onrender.com  
+
