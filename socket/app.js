@@ -1,8 +1,7 @@
 import { Server } from "socket.io";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import Message from "../api/models/Message.js";
-import Chat from "../api/models/Chat.js";
+
 
 // Load environment variables from .env file
 dotenv.config();
