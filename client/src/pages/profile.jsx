@@ -415,7 +415,7 @@ const Profile = () => {
                 <h3 className="text-lg font-semibold">My Properties ({userPosts.length})</h3>
                 <Link
                   to="/add-post"
-                  className="bg-[var(--theme-accent)] text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors cursor-pointer"
+                  className="bg-[var(--theme-accent)] text-white px-4 py-2 rounded hover:bg-[var(--hover-theme-accent)] transition-colors cursor-pointer"
                 >
                   Add New Property
                 </Link>
