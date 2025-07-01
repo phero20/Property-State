@@ -172,16 +172,36 @@ const Chat = () => {
   };
 
   // Send a message
-  const handleSendMessage = async (e) => {
+ const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChatId) return;
     const messageContent = newMessage.trim();
     const chatId = selectedChatId;
+  
+    // 1. Optimistically add the message to the UI
+    const tempMessage = {
+      id: `temp_${Date.now()}`,
+      chatId,
+      content: messageContent,
+      senderId: user._id,
+      createdAt: new Date().toISOString(),
+      optimistic: true // optional: mark as optimistic
+    };
+    setMessages(prev => [...prev, tempMessage]);
     setNewMessage('');
+  
     try {
+      // 2. Send to backend
       const response = await chatAPI.sendMessage(chatId, messageContent);
       const sentMessage = response.data;
-      setMessages((prev) => [...prev, sentMessage]);
+  
+      // 3. Replace the optimistic message with the real one from backend
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempMessage.id ? sentMessage : msg
+        )
+      );
+  
       setChats(prevChats =>
         prevChats.map(chat =>
           (chat.id === chatId || chat._id === chatId)
@@ -189,14 +209,11 @@ const Chat = () => {
             : chat
         )
       );
+  
+      // 4. Send via socket
       if (socketConnected) {
         const chat = chats.find(c => (c.id || c._id) === selectedChatId);
-        console.log(chat)
         const receiverId = chat && chat.user && chat.user.id;
-        console.log('[DEBUG] Sending message:');
-        console.log('  senderId:', user._id);
-        console.log('  receiverId:', receiverId);
-        console.log('  chatId:', chatId);
         if (receiverId) {
           socketService.sendMessage(receiverId, {
             chatId,
@@ -207,6 +224,8 @@ const Chat = () => {
         }
       }
     } catch {
+      // 5. If failed, remove the optimistic message and show error
+      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
       alert('Failed to send message. Please try again.');
       setNewMessage(messageContent);
     }
