@@ -399,12 +399,12 @@ const Profile = () => {
                 </div>
               </div>
 
-              <div>
+{/*               <div>
                 <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-main)' }}>Recent Activity</h3>
                 <div className="bg-gray-50 rounded-lg p-4" style={{ color: 'var(--text-light)' }}>
                   <p>Your recent property listings and activity will appear here.</p>
                 </div>
-              </div>
+              </div> */}
             </div>
           )}
 
@@ -415,7 +415,7 @@ const Profile = () => {
                 <h3 className="text-lg font-semibold">My Properties ({userPosts.length})</h3>
                 <Link
                   to="/add-post"
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors cursor-pointer"
+                  className="bg-[var(--theme-accent)] text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors cursor-pointer"
                 >
                   Add New Property
                 </Link>
