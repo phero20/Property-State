@@ -1,27 +1,4 @@
-:root {
-  --theme-accent: rgb(5, 150, 105);      /* Tailwind emerald-700 */
-  --hover-theme-accent: rgb(4, 120, 87); /* Tailwind emerald-800 */
-  --bg-main: #f7fafc;                    /* Tailwind gray-50 */
-  --bg-card: #fff;                       /* White for cards */
-  --text-main: #18181b;                  /* Tailwind zinc-900 */
-  --text-muted: #64748b;                 /* Tailwind slate-500 */
-  --text-light: #a7b2c1;     
-  --text-on-accent : #ffffff;           /* Tailwind slate-400 */
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --theme-accent: rgb(16, 185, 129);      /* Tailwind emerald-500 for dark mode */
-    --hover-theme-accent: rgb(5, 150, 105); /* Tailwind emerald-700 for dark mode */
-    --bg-main: #0f172a;                     /* Tailwind slate-900 */
-    --bg-card: #1e293b;                     /* Tailwind slate-800 */
-    --text-main: #f1f5f9;                   /* Tailwind slate-100 */
-    --text-muted: #cbd5e1;                  /* Tailwind slate-300 */
-    --text-light: #64748b;   
-  --text-on-accent : #ffffff;           /* Tailwind slate-400 */
-                  
-  }
-}
 
 
 :root {
@@ -255,7 +232,30 @@
   }
 }
 
+:root {
+  --theme-accent: rgb(5, 150, 105);      /* Tailwind emerald-700 */
+  --hover-theme-accent: rgb(4, 120, 87); /* Tailwind emerald-800 */
+  --bg-main: #f7fafc;                    /* Tailwind gray-50 */
+  --bg-card: #fff;                       /* White for cards */
+  --text-main: #18181b;                  /* Tailwind zinc-900 */
+  --text-muted: #64748b;                 /* Tailwind slate-500 */
+  --text-light: #a7b2c1;     
+  --text-on-accent : #ffffff;           /* Tailwind slate-400 */
+}
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --theme-accent: rgb(16, 185, 129);      /* Tailwind emerald-500 for dark mode */
+    --hover-theme-accent: rgb(5, 150, 105); /* Tailwind emerald-700 for dark mode */
+    --bg-main: #0f172a;                     /* Tailwind slate-900 */
+    --bg-card: #1e293b;                     /* Tailwind slate-800 */
+    --text-main: #f1f5f9;                   /* Tailwind slate-100 */
+    --text-muted: #cbd5e1;                  /* Tailwind slate-300 */
+    --text-light: #64748b;   
+  --text-on-accent : #ffffff;           /* Tailwind slate-400 */
+                  
+  }
+}
 
 
 @import "tailwindcss";
